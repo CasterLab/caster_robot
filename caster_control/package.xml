@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>caster_control</name>
+  <version>1.1.0</version>
+  <description>The caster_control package</description>
+
+  <maintainer email="ye@iquotient-robotics.com">Ye Tian</maintainer>
+
+  <license>MIT</license>
+
+  <url type="website">https://github.com/I-Quotient-Robotics/caster</url>
+  <url type="repository">https://github.com/I-Quotient-Robotics/caster</url>
+  <url type="bugtracker">https://github.com/I-Quotient-Robotics/caster/issues</url>
+
+  <author email="ye@iquotient-robotics.com">Ye Tian</author>
+
+  <build_depend>roslaunch</build_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>diff_drive_controller</exec_depend>
+  <exec_depend>joint_state_controller</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+
+  <export>
+  </export>
+</package>
