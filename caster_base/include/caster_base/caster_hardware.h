@@ -104,6 +104,7 @@ class CasterHardware : public hardware_interface::RobotHW {
     void RegisterControlInterfaces();
 
     std::string ToBinary(size_t data, uint8_t length);
+    uint16_t CRC16 (const uint8_t *data, uint16_t length);
 
     bool Command(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint32_t data, uint8_t data_length);
     bool Query(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint8_t data_length);
