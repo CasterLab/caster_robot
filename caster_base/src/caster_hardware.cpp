@@ -1,4 +1,4 @@
-#include "caster_base/caster_hardware_socketcan.h"
+#include "caster_base/caster_hardware.h"
 
 #include <math.h>
 #include <errno.h>
@@ -52,9 +52,14 @@ void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh,
   nh_ = nh;
   private_nh_ = private_nh;
 
+  private_nh_.param<int>("baudrate", baudrate_, 115200);
+  private_nh_.param<std::string>("port", port_, "/dev/caster_body");
+
+  private_nh_.param<int>("can_id", can_id_, 1);
   private_nh_.param<std::string>("can_send_topic", send_topic_, "sent_messages");
   private_nh_.param<std::string>("can_receive_topic", receive_topic_, "received_messages");
-  private_nh_.param<int>("can_id", can_id_, 1);
+  
+  private_nh_.param<std::string>("body_joint", body_joint_name_, "");
   private_nh_.param<std::string>("left_wheel_joint", left_wheel_joint_, "drive_wheel_left_joint");
   private_nh_.param<std::string>("right_wheel_joint", right_wheel_joint_, "drive_wheel_right_joint");
 
@@ -67,6 +72,22 @@ void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh,
   timer_ = nh.createTimer(ros::Duration(0.025), &iqr::CasterHardware::ControllerTimerCallback, this);
 
   RegisterControlInterfaces();
+
+  if(body_joint_name_ != "") {
+    ROS_INFO_STREAM("Start body control");
+    // try {
+    //   serial_port_.setPort(port_);
+    //   serial_port_.setBaudrate(baudrate_);
+    //   serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(1000);
+    //   serial_port_.setTimeout(serial_timeout);
+    //   serial_port_.open();
+    //   serial_port_.setRTS(false);
+    //   serial_port_.setDTR(false);
+    // } catch (serial::IOException& e) {
+    //   ROS_ERROR_STREAM("Unable to open serial port");
+    //   // return false;
+    // }
+  }
 
   diagnostic_updater_.setHardwareID("caster_robot");
   diagnostic_updater_.add("Left motor", this, &iqr::CasterHardware::LeftMotorCheck);
@@ -322,6 +343,10 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   bool success = false;
   uint32_t data;
 
+  if(body_joint_name_ != "") {
+    body_joint_.position = body_joint_.position_command;
+  }
+
   /* request motor speed */
   // int16_t l_rpm=-1, r_rpm=-1;
   // uint32_t left_rpm=-1, right_rpm=-1;
@@ -378,6 +403,16 @@ void iqr::CasterHardware::ResetTravelOffset() {
 * Register interfaces with the RobotHW interface manager, allowing ros_control operation
 */
 void iqr::CasterHardware::RegisterControlInterfaces() {
+  if(body_joint_name_ != "") {
+    hardware_interface::JointStateHandle body_joint_state_handle(body_joint_name_, &body_joint_.position, &body_joint_.velocity, &body_joint_.effort);
+    joint_state_interface_.registerHandle(body_joint_state_handle);
+    
+    hardware_interface::JointHandle body_joint_handle(body_joint_state_handle, &body_joint_.position_command);
+    position_joint_interface_.registerHandle(body_joint_handle);
+
+    registerInterface(&position_joint_interface_);
+  }
+
   hardware_interface::JointStateHandle left_wheel_joint_state_handle(left_wheel_joint_, &joints_[0].position, &joints_[0].velocity, &joints_[0].effort);
   joint_state_interface_.registerHandle(left_wheel_joint_state_handle);
 
@@ -396,6 +431,10 @@ void iqr::CasterHardware::RegisterControlInterfaces() {
 
 void iqr::CasterHardware::WriteCommandsToHardware() {
   int32_t speed[2];
+
+  if(body_joint_name_ != "") {
+    // body_joint_.position = body_joint_.position_command;
+  }
 
   speed[0] = static_cast<int32_t>(joints_[0].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60);
   // int16_t s_v = ntohl(speed);

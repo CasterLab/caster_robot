@@ -9,6 +9,7 @@
 #include <sys/types.h>
 
 #include <ros/ros.h>
+#include <serial/serial.h>
 #include <can_msgs/Frame.h>
 #include <sensor_msgs/JointState.h>
 #include <controller_manager/controller_manager.h>
@@ -34,16 +35,6 @@ namespace iqr {
 */
 class CasterHardware : public hardware_interface::RobotHW {
   public:
-    CasterHardware();
-
-    bool Connect();
-    void Initialize(std::string node_name, ros::NodeHandle& nh, ros::NodeHandle& private_nh);
-
-    void UpdateHardwareStatus();
-    void WriteCommandsToHardware();
-
-    void Clear();
-
     enum MotorIndex {
       kLeftMotor = 0x00,
       kRightMotor = 0x01, 
@@ -85,6 +76,29 @@ class CasterHardware : public hardware_interface::RobotHW {
       { }
     };
 
+    struct Joint {
+      double effort;
+      double position;
+      double position_command;
+      double position_offset;
+      double velocity;
+      double velocity_command;
+
+      Joint() :
+        effort(0), position(0), position_command(0), position_offset(0), velocity(0) , velocity_command(0)
+      { }
+    };
+
+    CasterHardware();
+
+    bool Connect();
+    void Initialize(std::string node_name, ros::NodeHandle& nh, ros::NodeHandle& private_nh);
+
+    void UpdateHardwareStatus();
+    void WriteCommandsToHardware();
+
+    void Clear();
+
   private:
     void ResetTravelOffset();
     void RegisterControlInterfaces();
@@ -124,6 +138,7 @@ class CasterHardware : public hardware_interface::RobotHW {
     // ROS Control interfaces
     hardware_interface::JointStateInterface joint_state_interface_;
     hardware_interface::VelocityJointInterface velocity_joint_interface_;
+    hardware_interface::PositionJointInterface position_joint_interface_;
 
     // diagnostic  update
     diagnostic_updater::Updater diagnostic_updater_;
@@ -140,20 +155,18 @@ class CasterHardware : public hardware_interface::RobotHW {
     int8_t status_flags_;
     MotorStatus motor_status_[2];
 
-    /**
-    * Joint structure that is hooked to ros_control's InterfaceManager, to allow control via diff_drive_controller
-    */
-    struct Joint {
-      double position;
-      double position_offset;
-      double velocity;
-      double effort;
-      double velocity_command;
+    Joint joints_[2];
 
-      Joint() :
-        position(0), velocity(0), effort(0), velocity_command(0)
-      { }
-    } joints_[2];
+    // serial port params
+    int baudrate_;
+    std::string port_;
+    serial::Serial serial_port_;
+
+    // ros controller joints
+    std::string body_joint_name_;
+
+    // body joint
+    Joint body_joint_;
 };
 }  // namespace iqr
 #endif  // CASTER_HARDWARE_SOCKETCAN_H_

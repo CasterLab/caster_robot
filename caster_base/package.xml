@@ -19,18 +19,19 @@
   
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
-  <depend>socket_bridge</depend>
+  <depend>socketcan_bridge</depend>
   <depend>yocs_cmd_vel_mux</depend>
   
-  <depend>ros-controllers</depend>
+  <!-- <depend>ros-controllers</depend> -->
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
   <depend>diff_drive_controller</depend>
 
-  <depend>hongfu_bms</depend>
   <depend>rplidar_ros</depend>
   <depend>dauxi_ks106</depend>
   <depend>jy901_driver</depend>
+  <depend>hongfu_bms_msg</depend>
+  <depend>hongfu_bms_status</depend>
 
   <depend>caster_control</depend>
   <depend>caster_description</depend>

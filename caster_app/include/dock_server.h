@@ -15,6 +15,8 @@
 
 #include <perception.h>
 
+#include <boost/format.hpp>
+
 namespace iqr {
 class DockServer : public actionlib::ActionServer<caster_app::DockAction> {
   private:
