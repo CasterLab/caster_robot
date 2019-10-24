@@ -121,18 +121,18 @@ void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh,
 
   if(body_joint_name_ != "") {
     ROS_INFO_STREAM("Start body control");
-    // try {
-    //   serial_port_.setPort(port_);
-    //   serial_port_.setBaudrate(baudrate_);
-    //   serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(1000);
-    //   serial_port_.setTimeout(serial_timeout);
-    //   serial_port_.open();
-    //   serial_port_.setRTS(false);
-    //   serial_port_.setDTR(false);
-    // } catch (serial::IOException& e) {
-    //   ROS_ERROR_STREAM("Unable to open serial port");
-    //   // return false;
-    // }
+    try {
+      serial_port_.setPort(port_);
+      serial_port_.setBaudrate(baudrate_);
+      serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(1000);
+      serial_port_.setTimeout(serial_timeout);
+      serial_port_.open();
+      serial_port_.setRTS(false);
+      serial_port_.setDTR(false);
+    } catch (serial::IOException& e) {
+      ROS_ERROR_STREAM("Unable to open serial port");
+      // return false;
+    }
   }
 
   diagnostic_updater_.setHardwareID("caster_robot");
@@ -423,6 +423,9 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   success = Query(kReadMotorAmps, 0x01, 4);
   success = Query(kReadMotorAmps, 0x02, 4);
 
+  uint8_t buf[13];
+  bzero(buf, 13);
+
   // send request
   buf[0] = 0x01;                    // ID
   buf[1] = 0x03;                    // write multi register
@@ -436,11 +439,18 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   memcpy(buf+6, &crc, 2);
 
   serial_port_.write(buf, 8);
-  serial_port_.read(buf, 6);
+
+  bzero(buf, 13);
+  serial_port_.read(buf, 7);
 
   uint16_t position;
-  memcpy(&position, buf+3)
+  uint8_t t_data[2];
+  t_data[0] = buf[4];
+  t_data[1] = buf[3];
+  memcpy(&position, t_data, 2);
   body_joint_.position = static_cast<double>(position) / 100000.0f;
+
+  // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
   joints_[kLeftMotor].velocity = motor_status_[kLeftMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
   joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
@@ -450,6 +460,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
 
   diagnostic_updater_.update();
 
+  // ROS_INFO("Body: %d, %lf", position, body_joint_.position);
   // ROS_INFO("motor counter: %d, %d, %d, %d", motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter, motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm);
   // ROS_INFO("motor counter: %f, %f, %d, %d", joints_[0].position, joints_[1].position, l_rpm, r_rpm);
   // ROS_INFO("status: %s, fault: %s, left: %s, right: %s", \
@@ -507,8 +518,8 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
   speed[1] = static_cast<int32_t>(joints_[1].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60) * -1.0;
   Command(kSetVelocity, static_cast<uint8_t>(kRightMotor+1), static_cast<uint32_t>(speed[1]), 4);
 
-  uint8_t buf[13];
-  bzero(buf, 13);
+  uint8_t buf[15];
+  bzero(buf, 15);
 
   // send request
   buf[0] = 0x01;                    // ID
@@ -524,8 +535,11 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
   buf[8] = 0x01;
 
   // set position
+  uint8_t t_data[2];
   uint16_t position = static_cast<uint16_t>(body_joint_.position_command * 100000.0f);
-  memcpy(buf+9, &position, 2);
+  memcpy(t_data, &position, 2);
+  buf[9] = t_data[1];
+  buf[10] = t_data[0];
 
   // set speed 80
   buf[11] = 0x00;
@@ -536,8 +550,12 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
   memcpy(buf+13, &crc, 2);
 
   serial_port_.write(buf, 15);
-  serial_port_.read(buf, 8);
 
+  bzero(buf, 15);
+  serial_port_.read(buf, 8);
+  // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+
+  // ROS_INFO("body command: %lf", body_joint_.position_command);
   // ROS_INFO("command: %f, %f; rad: %d, %d", joints_[0].velocity_command, joints_[1].velocity_command, speed[0], speed[1]);
 }
 

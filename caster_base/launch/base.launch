@@ -10,7 +10,7 @@
   <!-- Caster driver -->
   <node pkg="caster_base" type="caster_base_node" name="caster_base_node" output="$(arg log_type)">
     <param name="baudrate" type="int" value="115200" />
-    <param name="port" type="string" value="/dev/ttyUSB0" />
+    <param name="port" type="string" value="/dev/caster_body" />
     <param name="can_id" type="int" value="1" />
     <param name="can_send_topic" type="string" value="sent_messages" />
     <param name="can_receive_topic" type="string" value="received_messages" />
