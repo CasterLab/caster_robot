@@ -1,5 +1,5 @@
 global_costmap:
-  global_frame: /map               #参考系        (string, default: "/map")
+  global_frame: map               #参考系        (string, default: "/map")
   robot_base_frame: base_footprint      #             (string, default: "base_link")
 
   update_frequency: 5.0            #             (double, default: 5.0)
