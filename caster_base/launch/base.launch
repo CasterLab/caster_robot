@@ -40,6 +40,16 @@
     <param name="angle_max" value="1.4835299"/>
   </node>
 
+  <!-- rplidar driver -->
+  <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+    <param name="serial_port"         type="string" value="/dev/rplidar"/>
+    <param name="serial_baudrate"     type="int"    value="115200"/>
+    <param name="frame_id"            type="string" value="laser_link2"/>
+    <param name="inverted"            type="bool"   value="false"/>
+    <param name="angle_compensate"    type="bool"   value="true"/>
+    <remap from="scan" to="scan_2"/>
+  </node>
+
   <!-- BMS driver -->
   <node pkg="hongfu_bms_status" type="hongfu_bms_status_can_node" name="hongfu_bms_status_node" output="$(arg log_type)">
   </node>
