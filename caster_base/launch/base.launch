@@ -23,7 +23,7 @@
 
   <!-- Imu driver -->
   <node pkg="jy901_driver" type="jy901_driver_node" name="jy901_node" output="$(arg log_type)" >
-    <param name="baudrate" type="int" value="9600" />
+    <param name="baudrate" type="int" value="115200" />
     <param name="port" type="string" value="/dev/jy901" />
     <param name="looprate" type="int" value="50" />
     <remap from="imu/data" to="imu_data"/>
@@ -55,7 +55,7 @@
   </node>
 
   <!-- Ultrasonic sensor driver -->
-   <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen">
+  <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen">
     <param name="port" type="string" value="/dev/caster_us"/>
     <param name="baudrate" type="int" value="9600"/>
     <param name="frequency" type="int" value="10"/>
@@ -69,17 +69,17 @@
   </node>
 
   <!-- Robot pose ekf -->
-<!--   <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)">
+  <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)">
     <param name="output_frame" value="odom"/>
     <param name="base_footprint_frame" value="base_footprint"/>
-    <param name="freq" value="50.0"/>
+    <param name="freq" value="25"/>
     <param name="sensor_timeout" value="1.0"/>
     <param name="odom_used" value="true"/>
     <param name="imu_used" value="true"/>
     <param name="vo_used" value="false"/>
     <param name="debug" value="true"/>
     <param name="self_diagnose" value="false"/>
-  </node> -->
+  </node>
 
   <include file="$(find caster_control)/launch/control.launch">
     <arg name="log_type" value="$(arg log_type)"/>
