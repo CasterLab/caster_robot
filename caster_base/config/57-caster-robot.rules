@@ -3,4 +3,3 @@ KERNEL=="ttyUSB[0-9]",ATTRS{idVendor}=="10c4",ATTRS{idProduct}=="ea60", MODE:="0
 KERNEL=="ttyUSB[0-9]",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6001", MODE:="0777", ATTRS{serial}=="A50285BI", SYMLINK+="pan_tilt"
 KERNEL=="ttyUSB[0-9]",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6001", MODE:="0777", ATTRS{serial}=="AC01A35N", SYMLINK+="caster_us"
 KERNEL=="ttyUSB[0-9]",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6001", MODE:="0777", ATTRS{serial}=="A2002v0P", SYMLINK+="caster_body"
-
