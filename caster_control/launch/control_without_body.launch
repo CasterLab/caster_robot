@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="log_type" default="screen"/>
+
+  <!-- Load controller configuration -->
+  <rosparam command="load" file="$(find caster_control)/config/control_without_body.yaml" />
+
+  <!-- Spawn controllers -->
+  <node pkg="controller_manager" type="spawner" name="controller_spawner" output="$(arg log_type)"
+        args="caster/joint_state_controller caster/drive_controller" />
+
+  <!-- Cmd mux -->
+  <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager"/>
+  
+  <node pkg="nodelet" type="nodelet" name="yocs_cmd_vel_mux"
+        args="load yocs_cmd_vel_mux/CmdVelMuxNodelet nodelet_manager">
+    <param name="yaml_cfg_file" value="$(find caster_control)/config/cmd_vel_mux.yaml"/>
+    <remap from="yocs_cmd_vel_mux/output/cmd_vel" to="cmd_vel"/>
+  </node>
+ </launch>

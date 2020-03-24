@@ -405,7 +405,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   // int32_t l_count=-1, r_count=-1;
   success = Query(kReadAbsBLCounter, static_cast<uint8_t>(kLeftMotor+1), 4);
   success = Query(kReadAbsBLCounter, static_cast<uint8_t>(kRightMotor+1), 4);
-
+                 
   // uint8_t status_flag;
   success = Query(kReadStatusFlags, 0x00, 1);
   // status_flag = static_cast<uint8_t>(data);
@@ -423,32 +423,34 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   success = Query(kReadMotorAmps, 0x01, 4);
   success = Query(kReadMotorAmps, 0x02, 4);
 
-  uint8_t buf[13];
-  bzero(buf, 13);
+  if(body_joint_name_ != "") {
+    uint8_t buf[13];
+    bzero(buf, 13);
 
-  // send request
-  buf[0] = 0x01;                    // ID
-  buf[1] = 0x03;                    // write multi register
-  buf[2] = 0x00;                    // Starting Address Hi
-  buf[3] = 0x04;                    // Starting Address Lo
-  buf[4] = 0x00;                    // Quantity of Registers Hi
-  buf[5] = 0x01;                    // Quantity of Registers Lo
+    // send request
+    buf[0] = 0x01;                    // ID
+    buf[1] = 0x03;                    // write multi register
+    buf[2] = 0x00;                    // Starting Address Hi
+    buf[3] = 0x04;                    // Starting Address Lo
+    buf[4] = 0x00;                    // Quantity of Registers Hi
+    buf[5] = 0x01;                    // Quantity of Registers Lo
 
-  // crc
-  uint16_t crc = CRC16(buf, 6);
-  memcpy(buf+6, &crc, 2);
+    // crc
+    uint16_t crc = CRC16(buf, 6);
+    memcpy(buf+6, &crc, 2);
 
-  serial_port_.write(buf, 8);
+    serial_port_.write(buf, 8);
 
-  bzero(buf, 13);
-  serial_port_.read(buf, 7);
+    bzero(buf, 13);
+    serial_port_.read(buf, 7);
 
-  uint16_t position;
-  uint8_t t_data[2];
-  t_data[0] = buf[4];
-  t_data[1] = buf[3];
-  memcpy(&position, t_data, 2);
-  body_joint_.position = static_cast<double>(position) / 100000.0f;
+    uint16_t position;
+    uint8_t t_data[2];
+    t_data[0] = buf[4];
+    t_data[1] = buf[3];
+    memcpy(&position, t_data, 2);
+    body_joint_.position = static_cast<double>(position) / 100000.0f;
+  }
 
   // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
@@ -518,41 +520,44 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
   speed[1] = static_cast<int32_t>(joints_[1].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60) * -1.0;
   Command(kSetVelocity, static_cast<uint8_t>(kRightMotor+1), static_cast<uint32_t>(speed[1]), 4);
 
-  uint8_t buf[15];
-  bzero(buf, 15);
+  if(body_joint_name_ != "") {
+    uint8_t buf[15];
+    bzero(buf, 15);
 
-  // send request
-  buf[0] = 0x01;                    // ID
-  buf[1] = 0x10;                    // write multi register
-  buf[2] = 0x00;                    // Starting Address Hi
-  buf[3] = 0x05;                    // Starting Address Lo
-  buf[4] = 0x00;                    // Quantity of Registers Hi
-  buf[5] = 0x03;                    // Quantity of Registers Lo
-  buf[6] = 0x06;                    // Byte Count
+    // send request
+    buf[0] = 0x01;                    // ID
+    buf[1] = 0x10;                    // write multi register
+    buf[2] = 0x00;                    // Starting Address Hi
+    buf[3] = 0x05;                    // Starting Address Lo
+    buf[4] = 0x00;                    // Quantity of Registers Hi
+    buf[5] = 0x03;                    // Quantity of Registers Lo
+    buf[6] = 0x06;                    // Byte Count
 
-  // set enable
-  buf[7] = 0x00;
-  buf[8] = 0x01;
+    // set enable
+    buf[7] = 0x00;
+    buf[8] = 0x01;
 
-  // set position
-  uint8_t t_data[2];
-  uint16_t position = static_cast<uint16_t>(body_joint_.position_command * 100000.0f);
-  memcpy(t_data, &position, 2);
-  buf[9] = t_data[1];
-  buf[10] = t_data[0];
+    // set position
+    uint8_t t_data[2];
+    uint16_t position = static_cast<uint16_t>(body_joint_.position_command * 100000.0f);
+    memcpy(t_data, &position, 2);
+    buf[9] = t_data[1];
+    buf[10] = t_data[0];
 
-  // set speed 80
-  buf[11] = 0x00;
-  buf[12] = 0x50;
+    // set speed 80
+    buf[11] = 0x00;
+    buf[12] = 0x50;
 
-  // crc
-  uint16_t crc = CRC16(buf, 13);
-  memcpy(buf+13, &crc, 2);
+    // crc
+    uint16_t crc = CRC16(buf, 13);
+    memcpy(buf+13, &crc, 2);
 
-  serial_port_.write(buf, 15);
+    serial_port_.write(buf, 15);
 
-  bzero(buf, 15);
-  serial_port_.read(buf, 8);
+    bzero(buf, 15);
+    serial_port_.read(buf, 8);
+  }
+  
   // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
   // ROS_INFO("body command: %lf", body_joint_.position_command);
