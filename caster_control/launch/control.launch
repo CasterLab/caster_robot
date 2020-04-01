@@ -1,13 +1,24 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="log_type" default="screen"/>
+  <arg name="log_type" default="screen" />
+  <arg name="base_version" default="v1" />
+  <arg name="has_body" default="false" />
+  <arg name="body_version" default="v1" />
 
   <!-- Load controller configuration -->
-  <rosparam command="load" file="$(find caster_control)/config/control.yaml" />
+  <rosparam command="load" file="$(find caster_control)/config/base_control_$(arg base_version).yaml"/>
 
   <!-- Spawn controllers -->
-  <node pkg="controller_manager" type="spawner" name="controller_spawner" output="$(arg log_type)"
-        args="caster/joint_state_controller caster/body_controller caster/drive_controller" />
+  <group unless="$(arg has_body)">
+    <node pkg="controller_manager" type="spawner" name="controller_spawner" output="$(arg log_type)"
+      args="caster/joint_state_controller caster/drive_controller" />
+  </group>
+
+  <group if="$(arg has_body)">
+    <rosparam command="load" file="$(find caster_control)/config/body_control_$(arg body_version).yaml"/>
+    <node pkg="controller_manager" type="spawner" name="controller_spawner" output="$(arg log_type)"
+      args="caster/joint_state_controller caster/drive_controller caster/body_controller" />
+  </group>
 
   <!-- Cmd mux -->
   <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager"/>

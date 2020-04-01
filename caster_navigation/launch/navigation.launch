@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="log_type" default="screen"/>
+  <arg name="base_version" default="v1" />
   
   <!-- Arguments -->
   <arg name="map_file" default="$(find caster_navigation)/maps/caster.yaml"/>
@@ -12,11 +13,13 @@
   <!-- AMCL -->
   <include file="$(find caster_navigation)/launch/amcl.launch.xml" >
     <arg name="log_type" value="$(arg log_type)"/>
+    <arg name="base_version" value="$(arg base_version)" />
   </include>
 
   <!-- move_base -->
   <include file="$(find caster_navigation)/launch/move_base.launch.xml">
     <arg name="log_type" value="$(arg log_type)"/>
+    <arg name="base_version" value="$(arg base_version)" />
   </include>
 
   <!-- rviz -->

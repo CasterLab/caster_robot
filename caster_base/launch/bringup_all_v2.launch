@@ -3,12 +3,12 @@
   <arg name="log_type" default="screen"/>
 
   <!-- Robot description -->
-  <param name="robot_description" command="$(find xacro)/xacro $(find caster_description)/urdf/caster_xacro.xacro" />
+  <param name="robot_description" command="$(find xacro)/xacro $(find caster_description)/urdf/caster_v2_xacro.xacro" />
 
   <!-- Robot base -->
-  <include file="$(find caster_base)/launch/base.launch">
+  <include file="$(find caster_base)/launch/base_v2.launch">
     <arg name="log_type" value="$(arg log_type)"/>
-    <arg name="base_version" value="v1" />
+    <arg name="base_version" value="v2" />
     <arg name="has_body" value="false" />
     <arg name="body_version" value="v1" />
   </include>

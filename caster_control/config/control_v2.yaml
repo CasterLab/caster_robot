@@ -2,9 +2,6 @@ caster:
   joint_state_controller:
     type: "joint_state_controller/JointStateController"
     publish_rate: 30
-  body_controller:
-    type: "position_controllers/JointPositionController"
-    joint: "caster_body_connected_joint"
   drive_controller:
     type: "diff_drive_controller/DiffDriveController"
     left_wheel: ['drive_wheel_left_joint']

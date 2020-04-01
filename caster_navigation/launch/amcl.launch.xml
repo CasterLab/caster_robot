@@ -1,12 +1,13 @@
 <launch>
   <arg name="log_type" default="screen"/>
+  <arg name="base_version" default="v1" />
 
   <!-- Arguments -->
   <arg name="scan_topic"     default="scan"/>
 
   <!-- AMCL -->
   <node pkg="amcl" type="amcl" name="amcl" output="$(arg log_type)">
-    <rosparam file="$(find caster_navigation)/config/amcl.yaml" command="load" />
+    <rosparam file="$(find caster_navigation)/config/$(arg base_version)/amcl.yaml" command="load" />
     <remap from="scan" to="$(arg scan_topic)"/>
   </node>
 </launch>

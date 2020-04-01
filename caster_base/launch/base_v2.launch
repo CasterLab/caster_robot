@@ -5,29 +5,29 @@
   <arg name="has_body" default="false" />
   <arg name="body_version" default="v1" />
 
-  <!-- Socketcan bridge -->
-  <node pkg="socketcan_bridge" type="socketcan_bridge_node" name="socketcan_bridge_node" output="$(arg log_type)">
-    <param name="can_device" type="string" value="can0" />
-  </node>
-
   <!-- Caster driver -->
-  <node pkg="caster_base" type="caster_base_node" name="caster_base_node" output="$(arg log_type)">
-    <param name="baudrate" type="int" value="115200" />
-    <param name="port" type="string" value="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1.2:1.0-port0" />
-    <param name="can_id" type="int" value="1" />
-    <param name="can_send_topic" type="string" value="sent_messages" />
-    <param name="can_receive_topic" type="string" value="received_messages" />
-    <param name="body_joint" type="string" value="caster_body_connected_joint" />
+  <node pkg="caster_base" type="caster_base_serial_node" name="caster_base_serial_node" output="$(arg log_type)">
+    <param name="base_baudrate" type="int" value="115200" />
+    <param name="base_port" type="string" value="/dev/caster_base" />
+    <param name="body_baudrate" type="int" value="115200" if="$(arg has_body)"/>
+    <param name="body_port" type="string" value="/dev/caster_body" if="$(arg has_body)" />
+    <param name="body_joint" type="string" value="caster_body_connected_joint" if="$(arg has_body)"/>
     <param name="left_wheel_joint" type="string" value="drive_wheel_left_joint" />
     <param name="right_wheel_joint" type="string" value="drive_wheel_right_joint" />
     <remap from="/caster/drive_controller/odom" to="/odom"/>
     <remap from="/caster/drive_controller/cmd_vel" to="/cmd_vel"/>
   </node>
 
+  <!-- Caster MCU driver -->
+  <node pkg="caster_base" type="caster_mcu_node" name="caster_mcu_node" output="$(arg log_type)">
+    <param name="mcu_baudrate" type="int" value="115200" />
+    <param name="mcu_port" type="string" value="/dev/caster_base" />
+  </node>
+
   <!-- Imu driver -->
   <node pkg="jy901_driver" type="jy901_driver_node" name="jy901_node" output="$(arg log_type)" >
     <param name="baudrate" type="int" value="115200" />
-    <param name="port" type="string" value="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1.4.2:1.0-port0" />
+    <param name="port" type="string" value="/dev/jy901" />
     <param name="looprate" type="int" value="50" />
     <remap from="imu/data" to="imu_data"/>
   </node>
@@ -43,9 +43,9 @@
     <param name="angle_max" value="1.4835299"/>
   </node>
 
-  <!-- rplidar driver -->
+  <!-- RPlidar driver -->
   <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
-    <param name="serial_port"         type="string" value="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1.3:1.0-port0"/>
+    <param name="serial_port"         type="string" value="/dev/rplidar"/>
     <param name="serial_baudrate"     type="int"    value="115200"/>
     <param name="frame_id"            type="string" value="laser_link2"/>
     <param name="inverted"            type="bool"   value="false"/>
@@ -59,7 +59,7 @@
 
   <!-- Ultrasonic sensor driver -->
   <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen">
-    <param name="port" type="string" value="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1.4.3:1.0-port0"/>
+    <param name="port" type="string" value="/dev/caster_us"/>
     <param name="baudrate" type="int" value="9600"/>
     <param name="frequency" type="int" value="10"/>
     <param name="min_range" type="double" value="0.20" />
@@ -71,7 +71,7 @@
     <param name="us4_id" type="string" value="ultrasonic_rear_left"/>
   </node>
 
-  <!-- Robot pose ekf -->
+  <!-- Robot pose EKF -->
   <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)">
     <param name="output_frame" value="odom"/>
     <param name="base_footprint_frame" value="base_footprint"/>
@@ -84,7 +84,7 @@
     <param name="self_diagnose" value="false"/>
   </node>
 
-  <include file="$(find caster_control)/launch/control.launch">
+  <include file="$(find caster_control)/launch/control_v2.launch">
     <arg name="log_type" value="$(arg log_type)"/>
     <arg name="base_version" value="$(arg base_version)" />
     <arg name="has_body" value="$(arg has_body)" />

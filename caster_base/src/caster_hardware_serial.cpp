@@ -113,10 +113,10 @@ void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh,
   nh_ = nh;
   private_nh_ = private_nh;
 
-  private_nh_.param<int>("baudrate_body", baudrate_body_, 115200);
-  private_nh_.param<std::string>("port_body", port_body_, "/dev/caster_body");
-  private_nh_.param<int>("baudrate_driver", baudrate_driver_, 115200);
-  private_nh_.param<std::string>("port_driver", port_driver_, "/dev/ttyUSB0");
+  private_nh_.param<int>("base_baudrate", baudrate_driver_, 115200);
+  private_nh_.param<std::string>("base_port", port_driver_, "/dev/caster_base");
+  private_nh_.param<int>("body_baudrate", baudrate_body_, 115200);
+  private_nh_.param<std::string>("body_port", port_body_, "/dev/caster_body");
 
   private_nh_.param<std::string>("body_joint", body_joint_name_, "");
   private_nh_.param<std::string>("left_wheel_joint", left_wheel_joint_, "drive_wheel_left_joint");
