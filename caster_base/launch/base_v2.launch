@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="log_type" default="screen"/>
-  <arg name="base_version" default="v1" />
+  <arg name="base_version" default="v2" />
   <arg name="has_body" default="false" />
   <arg name="body_version" default="v1" />
 
@@ -21,13 +21,13 @@
   <!-- Caster MCU driver -->
   <node pkg="caster_base" type="caster_mcu_node" name="caster_mcu_node" output="$(arg log_type)">
     <param name="mcu_baudrate" type="int" value="115200" />
-    <param name="mcu_port" type="string" value="/dev/caster_base" />
+    <param name="mcu_port" type="string" value="/dev/caster_mcu" />
   </node>
 
   <!-- Imu driver -->
   <node pkg="jy901_driver" type="jy901_driver_node" name="jy901_node" output="$(arg log_type)" >
     <param name="baudrate" type="int" value="115200" />
-    <param name="port" type="string" value="/dev/jy901" />
+    <param name="port" type="string" value="/dev/caster_imu" />
     <param name="looprate" type="int" value="50" />
     <remap from="imu/data" to="imu_data"/>
   </node>
@@ -44,22 +44,27 @@
   </node>
 
   <!-- RPlidar driver -->
-  <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+<!--   <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
     <param name="serial_port"         type="string" value="/dev/rplidar"/>
     <param name="serial_baudrate"     type="int"    value="115200"/>
     <param name="frame_id"            type="string" value="laser_link2"/>
     <param name="inverted"            type="bool"   value="false"/>
     <param name="angle_compensate"    type="bool"   value="true"/>
     <remap from="scan" to="scan_2"/>
-  </node>
+  </node> -->
 
   <!-- BMS driver -->
-  <node pkg="hongfu_bms_status" type="hongfu_bms_status_can_node" name="hongfu_bms_status_node" output="$(arg log_type)">
+  <node pkg="hongfu_bms_status" type="hongfu_bms_status_node" name="hongfu_bms_status_node" output="screen">
+    <param name="looprate" type="int" value="1" />
+    <param name="baudrate" type="int" value="9600" />
+    <param name="port" type="string" value="/dev/caster_bms" />
+    <param name="frame_id" type="string" value="hongfu_bms" />
+    <remap from="/hongfu_bms_status/hongfu_bms" to="/bms"/>
   </node>
 
   <!-- Ultrasonic sensor driver -->
   <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen">
-    <param name="port" type="string" value="/dev/caster_us"/>
+    <param name="port" type="string" value="/dev/caster_sonar"/>
     <param name="baudrate" type="int" value="9600"/>
     <param name="frequency" type="int" value="10"/>
     <param name="min_range" type="double" value="0.20" />
@@ -84,7 +89,7 @@
     <param name="self_diagnose" value="false"/>
   </node>
 
-  <include file="$(find caster_control)/launch/control_v2.launch">
+  <include file="$(find caster_control)/launch/control.launch">
     <arg name="log_type" value="$(arg log_type)"/>
     <arg name="base_version" value="$(arg base_version)" />
     <arg name="has_body" value="$(arg has_body)" />

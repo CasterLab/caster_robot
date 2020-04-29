@@ -4,6 +4,7 @@
   <arg name="base_version" default="v1" />
   
   <!-- Arguments -->
+  <!-- <arg name="map_file" default="$(find caster_navigation)/maps/floor3_change.yaml"/> -->
   <arg name="map_file" default="$(find caster_navigation)/maps/caster.yaml"/>
   <arg name="rviz" default="false"/>
 

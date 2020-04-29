@@ -6,7 +6,7 @@
   <arg name="body_version" default="v1" />
 
   <!-- Load controller configuration -->
-  <rosparam command="load" file="$(find caster_control)/config/base_control_$(arg base_version).yaml"/>
+  <rosparam command="load" file="$(find caster_control)/config/control_$(arg base_version).yaml"/>
 
   <!-- Spawn controllers -->
   <group unless="$(arg has_body)">

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="log_type" default="screen"/>
+
+<!--   <include file="$(find caster_base)/launch/bringup_all.launch">
+    <arg name="log_type" value="$(arg log_type)"/>
+  </include>
+
+  <include file="$(find caster_navigation)/launch/navigation.launch">
+    <arg name="log_type" value="$(arg log_type)"/>
+  </include>
+
+  <include file="$(find caster_teleop)/launch/teleop.launch">
+  </include>
+ -->
+  <!-- Caster disinfect app -->
+  <node pkg="caster_man_app" type="caster_disinfect_node" name="caster_disinfect_node" output="$(arg log_type)">
+    <rosparam file="$(find caster_man_app)/config/caster_disinfect.yaml" command="load" />
+  </node>
+</launch>

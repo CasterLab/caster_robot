@@ -328,7 +328,7 @@ int16_t* iqr::CasterHardware::BufferSpilt(std::string buf_driver) {
   if (index_data != -1)
   {
     char *data_n = new char[20];
-    char *buf_c = new char[200];
+    char *buf_c = new char[1000];
     char const *delim1 = "\r";
     char const *delim2 = "=";
     std::vector<std::string> buf_spilt(27);
@@ -388,7 +388,7 @@ void iqr::CasterHardware::SerialReadUpadata() {
       {
         motor_status_[index_cc].temperature = data[1+index_cc];
         motor_status_[index_cc].temperature_MCU = data[0];
-        motor_status_[index_cc].counter = -data[5+index_cc];
+        motor_status_[index_cc].counter = data[5+index_cc];
         if(motor_status_[index_cc].counter_reset == false) {
           motor_status_[index_cc].counter_offset = motor_status_[index_cc].counter;
           motor_status_[index_cc].counter_reset = true;
@@ -469,7 +469,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
 
   joints_[kLeftMotor].position = (motor_status_[kLeftMotor].counter-motor_status_[kLeftMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
-  joints_[kRightMotor].position = (motor_status_[kRightMotor].counter-motor_status_[kRightMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
+  joints_[kRightMotor].position = (motor_status_[kRightMotor].counter-motor_status_[kRightMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
 
   diagnostic_updater_.update();
 
