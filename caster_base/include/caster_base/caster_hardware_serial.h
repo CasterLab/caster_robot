@@ -83,7 +83,9 @@ class CasterHardware : public hardware_interface::RobotHW {
 
     int16_t *num = new int16_t[14];
     std::string data_type[13] = {"T", "T", "T", "A", "A", "CB", "CB", "BS", "BS", "FM", "FM", "FS","FF"};
+
     CasterHardware();
+    ~CasterHardware();
 
     void Initialize(std::string node_name, ros::NodeHandle& nh, ros::NodeHandle& private_nh);
 

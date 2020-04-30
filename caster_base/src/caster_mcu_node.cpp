@@ -96,28 +96,6 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   }
 }
 
-void Decode(const uint8_t *frame_buffer) {
-  hardware_state.halt = static_cast<bool>(frame_buffer[0]);
-  hardware_state.e_stop = static_cast<bool>(frame_buffer[1]);
-  hardware_state.charger_detect = static_cast<bool>(frame_buffer[2]);
-
-  memcpy(&hardware_state.dc_05v.power_mw, frame_buffer+3, 2);
-  memcpy(&hardware_state.dc_05v.current_ma, frame_buffer+5, 2);
-  memcpy(&hardware_state.dc_05v.velocity_mv, frame_buffer+7, 2);
-
-  memcpy(&hardware_state.dc_12v.power_mw, frame_buffer+9, 2);
-  memcpy(&hardware_state.dc_12v.current_ma, frame_buffer+11, 2);
-  memcpy(&hardware_state.dc_12v.velocity_mv, frame_buffer+13, 2);
-
-  memcpy(&hardware_state.dc_19v.power_mw, frame_buffer+15, 2);
-  memcpy(&hardware_state.dc_19v.current_ma, frame_buffer+17, 2);
-  memcpy(&hardware_state.dc_19v.velocity_mv, frame_buffer+19, 2);
-
-  memcpy(&hardware_state.dc_24v.power_mw, frame_buffer+21, 2);
-  memcpy(&hardware_state.dc_24v.current_ma, frame_buffer+23, 2);
-  memcpy(&hardware_state.dc_24v.velocity_mv, frame_buffer+25, 2);
-}
-
 int main(int argc, char *argv[]) {
   ros::init(argc, argv, "caster_mcu_node");
   ros::NodeHandle private_nh("~");

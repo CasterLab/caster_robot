@@ -10,6 +10,17 @@ iqr::CasterHardware::CasterHardware() {
 
 }
 
+iqr::CasterHardware::~CasterHardware() {
+  if(serial_port_driver_.isOpen()) {
+    serial_port_driver_.close();
+  }
+  
+  if(serial_port_body_.isOpen()) {
+    serial_port_body_.close();
+  }
+}
+
+
 uint16_t iqr::CasterHardware::CRC16 (const uint8_t *data, uint16_t length) {
   static const uint16_t crc_table[] = {
     0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
@@ -66,9 +77,18 @@ std::string iqr::CasterHardware::ToBinary(size_t data, uint8_t length) {
 }
 
 void iqr::CasterHardware::ControllerTimerCallback(const ros::TimerEvent&) {
+  static ros::Time start_time = ros::Time::now();
+
   UpdateHardwareStatus();
   SerialReadUpadata();
-  controller_manager_->update(ros::Time::now(), ros::Duration(0.1));
+
+  ros::Duration delta = ros::Time::now() - start_time;
+  controller_manager_->update(ros::Time::now(), delta);
+  // controller_manager_->update(ros::Time::now(), ros::Duration(0.025));
+
+  // ROS_INFO("delta: %lf", delta.toSec()*1000.0);
+  start_time = ros::Time::now();
+  
   WriteCommandsToHardware();
 }
 
@@ -125,7 +145,7 @@ void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh,
   set_io_service_ = private_nh_.advertiseService("set_digital_output", &iqr::CasterHardware::SetDigitalOutputCB, this);
 
   controller_manager_ = new controller_manager::ControllerManager(this, nh);
-  timer_ = nh.createTimer(ros::Duration(0.025), &iqr::CasterHardware::ControllerTimerCallback, this);
+  timer_ = nh.createTimer(ros::Duration(0.04), &iqr::CasterHardware::ControllerTimerCallback, this);
 
   RegisterControlInterfaces();
 
@@ -466,7 +486,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   // // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
   joints_[kLeftMotor].velocity = motor_status_[kLeftMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
-  joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
+  joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
 
   joints_[kLeftMotor].position = (motor_status_[kLeftMotor].counter-motor_status_[kLeftMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
   joints_[kRightMotor].position = (motor_status_[kRightMotor].counter-motor_status_[kRightMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
@@ -474,8 +494,10 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   diagnostic_updater_.update();
 
   // ROS_INFO("Body: %d, %lf", position, body_joint_.position);
-  // ROS_INFO("motor counter: %d, %d, %d, %d", motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter, motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm);
-  // ROS_INFO("motor counter: %f, %f, %d, %d", joints_[0].position, joints_[1].position, l_rpm, r_rpm);
+  // ROS_INFO("motor counter: %d, %d, %d, %d, %lf, %lf",
+  //           motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter,
+  //           motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm,
+  //           joints_[kLeftMotor].velocity, joints_[kRightMotor].velocity);
   // ROS_INFO("status: %s, fault: %s, left: %s, right: %s", \
             ToBinary(status_flag, sizeof(status_flag)).c_str(), ToBinary(fault_flag, sizeof(fault_flag)).c_str(), \
             ToBinary(left_motor_flag, sizeof(left_motor_flag)).c_str(), ToBinary(right_motor_flag, sizeof(right_motor_flag)).c_str());
