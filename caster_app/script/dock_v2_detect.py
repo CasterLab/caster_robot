@@ -16,8 +16,8 @@ from geometry_msgs.msg import PoseStamped
 
 import icp
 
-min_detect_angle = -0.87266         # now: -50 degree # -math.pi/4.0
-max_detect_angle = 0.87266          # now: 50 degree  # math.pi/4.0
+min_detect_angle = -math.pi/2.0         # now: -50 degree # -math.pi/4.0
+max_detect_angle = math.pi/2.0          # now: 50 degree  # math.pi/4.0
 
 find_dock = False
 cluster_threshold = 0.04            # cluster distance threshold
@@ -46,9 +46,9 @@ def GenerateIdealDock(points_count):
 
     # rospy.loginfo("GenerateIdealDock with %d points" % points_count)
 
-    base_length = 0.40239               # 402.39mm
-    hypotenuse_length = 0.14            # 175.18mm
-    base_angle = math.pi / 3.0 * 2.0    # 120 degrees
+    base_length = 0.2475                   # 250.00mm
+    hypotenuse_length = 0.1985             # 197.00mm
+    base_angle = 142.5 / 180.0 * math.pi   # 145 degrees
 
     base_points_count = points_count/4*2 + points_count%4
     hypotenuse_points_count = points_count / 4

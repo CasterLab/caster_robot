@@ -23,7 +23,6 @@
   <depend>socketcan_bridge</depend>
   <depend>yocs_cmd_vel_mux</depend>
   
-  <!-- <depend>ros-controllers</depend> -->
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
   <depend>diff_drive_controller</depend>
@@ -35,6 +34,9 @@
   <depend>jy901_driver</depend>
   <depend>hongfu_bms_msg</depend>
   <depend>hongfu_bms_status</depend>
+
+  <depend>joy</depend>
+  <depend>joy_teleop</depend>
 
   <depend>caster_control</depend>
   <depend>caster_description</depend>

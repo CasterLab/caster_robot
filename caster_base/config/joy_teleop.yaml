@@ -1,0 +1,28 @@
+teleop:
+  move:
+    type: topic
+    message_type: geometry_msgs/Twist
+    topic_name: cmd_vel
+    deadman_buttons: [5] # RB
+    axis_mappings:
+      -
+        axis: 1
+        target: linear.x
+        scale: 0.5
+      -
+        axis: 0
+        target: angular.z
+        scale: 1.0
+  dock:
+    type: action
+    action_name: /dock_action
+    action_goal:
+      dock: true
+    buttons: [9] # START
+
+  undock:
+    type: action
+    action_name: /dock_action
+    action_goal:
+      dock: false
+    buttons: [8] # BACK

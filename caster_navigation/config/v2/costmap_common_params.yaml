@@ -1,5 +1,5 @@
 # footprint: [[-0.105, -0.105], [-0.105, 0.105], [0.041, 0.105], [0.041, -0.105]]
-robot_radius: 0.27
+robot_radius: 0.275
 
 #layer definitions
 static_layer:

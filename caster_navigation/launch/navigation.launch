@@ -5,7 +5,7 @@
   
   <!-- Arguments -->
   <!-- <arg name="map_file" default="$(find caster_navigation)/maps/floor3_change.yaml"/> -->
-  <arg name="map_file" default="$(find caster_navigation)/maps/caster.yaml"/>
+  <arg name="map_file" default="$(find caster_navigation)/maps/home.yaml"/>
   <arg name="rviz" default="false"/>
 
   <!-- Map server -->
