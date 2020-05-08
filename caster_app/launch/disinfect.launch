@@ -15,6 +15,6 @@
  -->
   <!-- Caster disinfect app -->
   <node pkg="caster_man_app" type="caster_disinfect_node" name="caster_disinfect_node" output="$(arg log_type)">
-    <rosparam file="$(find caster_man_app)/config/caster_disinfect.yaml" command="load" />
+    <rosparam file="$(find caster_man_app)/config/disinfect.yaml" command="load" />
   </node>
 </launch>

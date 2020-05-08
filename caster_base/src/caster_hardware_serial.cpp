@@ -20,7 +20,6 @@ iqr::CasterHardware::~CasterHardware() {
   }
 }
 
-
 uint16_t iqr::CasterHardware::CRC16 (const uint8_t *data, uint16_t length) {
   static const uint16_t crc_table[] = {
     0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
@@ -178,10 +177,10 @@ void iqr::CasterHardware::LeftMotorCheck(diagnostic_updater::DiagnosticStatusWra
    * f7 = Amps Trigger activated
   */
 
-  status.add("current (A)", motor_status_[kLeftMotor].current);
-  status.add("speed (RPM)", motor_status_[kLeftMotor].rpm);
-  status.add("temperature (Degree)", motor_status_[kLeftMotor].temperature);
-  status.add("Temperature_MCU (Degree)", motor_status_[kLeftMotor].temperature_MCU);
+  status.add("Speed (RPM)", motor_status_[kLeftMotor].rpm);
+  status.add("Current (A)", motor_status_[kLeftMotor].current);
+  status.add("Temperature (℃)", motor_status_[kLeftMotor].temperature);
+  status.add("Temperature MCU (℃)", motor_status_[kLeftMotor].temperature_MCU);
 
   // ROS_INFO("motor %s", ToBinary(motor_status_[kLeftMotor].status, 1).c_str());
 
@@ -221,9 +220,10 @@ void iqr::CasterHardware::RightMotorCheck(diagnostic_updater::DiagnosticStatusWr
    * f7 = Amps Trigger activated
   */
 
-  status.add("current (A)", motor_status_[kRightMotor].current);
-  status.add("speed (RPM)", motor_status_[kRightMotor].rpm);
-  status.add("temperature (Degree)", motor_status_[kRightMotor].temperature);
+  status.add("Speed (RPM)", motor_status_[kRightMotor].rpm);
+  status.add("Current (A)", motor_status_[kRightMotor].current);
+  status.add("Temperature (℃)", motor_status_[kRightMotor].temperature);
+  status.add("Temperature MCU (℃)", motor_status_[kRightMotor].temperature_MCU);
   // status.add("counter", motor_status_[kRightMotor].counter);
 
   // ROS_INFO("motor %s", ToBinary(motor_status_[kLeftMotor].status, 1).c_str());
@@ -280,7 +280,7 @@ void iqr::CasterHardware::StatusCheck(diagnostic_updater::DiagnosticStatusWrappe
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
   if(contorl_mode == "unknown") {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "unknown control mode");
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Unknown control mode");
   }
   if((status_flags_>>3)&0x01 == 0x01) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Power stage off");
@@ -325,7 +325,7 @@ void iqr::CasterHardware::ControllerCheck(diagnostic_updater::DiagnosticStatusWr
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Short circuit");
   }
   if((fault_flags_>>4)&0x01 == 0x01) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Emergency stop");
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Emergency stop");
   }
   if((fault_flags_>>5)&0x01 == 0x01) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Brushless sensor fault");

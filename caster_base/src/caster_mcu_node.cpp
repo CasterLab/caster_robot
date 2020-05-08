@@ -69,30 +69,30 @@ void FrameHandler(const uint8_t *frame_buffer, uint16_t frame_length) {
 void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   status.add("Charger Detect", hardware_state.charger_detect);
 
-  status.addf("DC-05V Power(W)", "%.7f", hardware_state.dc_05v.power_mw / 1000000.0);
-  status.addf("DC-05V Current(A)", "%.3f", hardware_state.dc_05v.current_ma / 1000.0);
-  status.addf("DC-05V Velocity(V)", "%.2f", hardware_state.dc_05v.velocity_mv / 1000.0);
+  status.addf("DC-05V Current (A)", "%.3f", hardware_state.dc_05v.current_ma / 1000.0);
+  status.addf("DC-05V Velocity (V)", "%.2f", hardware_state.dc_05v.velocity_mv / 1000.0);
+  status.addf("DC-05V Power (W)", "%.4f", hardware_state.dc_05v.power_mw / 1000.0);
 
-  status.addf("DC-12V Power(W)", "%.7f", hardware_state.dc_12v.power_mw / 1000000.0);
-  status.addf("DC-12V Current(A)", "%.3f", hardware_state.dc_12v.current_ma / 1000.0);
-  status.addf("DC-12V Velocity(V)", "%.2f", hardware_state.dc_12v.velocity_mv / 1000.0);
+  status.addf("DC-12V Current (A)", "%.3f", hardware_state.dc_12v.current_ma / 1000.0);
+  status.addf("DC-12V Velocity (V)", "%.2f", hardware_state.dc_12v.velocity_mv / 1000.0);
+  status.addf("DC-12V Power (W)", "%.4f", hardware_state.dc_12v.power_mw / 1000.0);
 
-  status.addf("DC-19V Power(W)", "%.7f", hardware_state.dc_19v.power_mw / 1000000.0);
-  status.addf("DC-19V Current(A)", "%.3f", hardware_state.dc_19v.current_ma / 1000.0);
-  status.addf("DC-19V Velocity(V)", "%.2f", hardware_state.dc_19v.velocity_mv / 1000.0);
+  status.addf("DC-19V Current (A)", "%.3f", hardware_state.dc_19v.current_ma / 1000.0);
+  status.addf("DC-19V Velocity (V)", "%.2f", hardware_state.dc_19v.velocity_mv / 1000.0);
+  status.addf("DC-19V Power (W)", "%.4f", hardware_state.dc_19v.power_mw / 1000.0);
 
-  status.addf("DC-24V Power(W)", "%.7f", hardware_state.dc_24v.power_mw / 1000000.0);
-  status.addf("DC-24V Current(A)", "%.3f", hardware_state.dc_24v.current_ma / 1000.0);
-  status.addf("DC-24V Velocity(V)", "%.2f", hardware_state.dc_24v.velocity_mv / 1000.0);
+  status.addf("DC-24V Current (A)", "%.3f", hardware_state.dc_24v.current_ma / 1000.0);
+  status.addf("DC-24V Velocity (V)", "%.2f", hardware_state.dc_24v.velocity_mv / 1000.0);
+  status.addf("DC-24V Power (W)", "%.4f", hardware_state.dc_24v.power_mw / 1000.0);
 
-  status.addf("DC-Full Power(W)", "%010.7f", (hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw) / 1000000.0);
+  status.addf("DC-Full Power (W)", "%.4f", (hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw) / 1000.0);
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
   if(hardware_state.halt == true) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Halt triggered");
   }
   if(hardware_state.e_stop == true) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "E-Stop active");
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "E-Stop active");
   }
 }
 

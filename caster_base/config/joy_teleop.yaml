@@ -18,11 +18,11 @@ teleop:
     action_name: /dock_action
     action_goal:
       dock: true
-    buttons: [9] # START
+    buttons: [7] # START
 
   undock:
     type: action
     action_name: /dock_action
     action_goal:
       dock: false
-    buttons: [8] # BACK
+    buttons: [6] # BACK
