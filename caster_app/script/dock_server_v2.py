@@ -4,8 +4,8 @@ import math
 import threading
 
 import rospy
-import tf
 
+import tf
 from tf.transformations import euler_from_quaternion
 
 from actionlib import SimpleActionClient
@@ -15,7 +15,6 @@ from actionlib.action_server import ActionServer
 from geometry_msgs.msg import Pose, Twist, PoseStamped
 from move_base_msgs.msg import MoveBaseGoal, MoveBaseFeedback, MoveBaseAction
 
-from caster_base.srv import SetDigitalOutput
 from caster_app.msg import DockAction, DockFeedback, DockResult
 
 class DockActionServer(ActionServer):
@@ -177,7 +176,7 @@ class DockActionServer(ActionServer):
             rospy.logwarn('tf error')
 
         delta_distance = 0
-        while delta_distance < self.__dock_distance-0.3 and not rospy.is_shutdown():
+        while delta_distance < self.__dock_distance-0.25 and not rospy.is_shutdown():
             self.__cmd_pub.publish(cmd)
 
             try :
@@ -209,7 +208,7 @@ class DockActionServer(ActionServer):
         self.__current_goal_handle.set_succeeded(None, 'Docked')
         rospy.loginfo('Docked')
 
-    def __moveto_dock_ready_allin(self):
+    def __moveto_dock_ready(self):
         # step 1
         mb_goal = MoveBaseGoal()
         mb_goal.target_pose.header.stamp = rospy.Time.now()
@@ -313,7 +312,7 @@ class DockActionServer(ActionServer):
                 else: 
                     rospy.loginfo('Docking')
                     self.__current_goal_handle.set_accepted('Docking')
-                    self.__moveto_dock_ready_allin()
+                    self.__moveto_dock_ready()
             elif goal.dock == False:
                 if self.__docked == False:
                     rospy.logwarn('cancel_all_goals')
