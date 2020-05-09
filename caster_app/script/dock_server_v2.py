@@ -6,6 +6,8 @@ import threading
 import rospy
 import tf
 
+from tf.transformations import euler_from_quaternion
+
 from actionlib import SimpleActionClient
 from actionlib.server_goal_handle import ServerGoalHandle
 from actionlib.action_server import ActionServer
@@ -98,24 +100,73 @@ class DockActionServer(ActionServer):
         self.__exec_condition.release()
 
     def __set_charge_relay(self, state):
-        rospy.loginfo('set relay %d' % state)
-        rospy.loginfo('check caster base service...')
-        rospy.wait_for_service('caster_base_node/set_digital_output')
-        rospy.loginfo('service exist')
-
-        try:
-            set_digital_output = rospy.ServiceProxy('caster_base_node/set_digital_output', SetDigitalOutput)
-            resp = set_digital_output(4, state)
-        except rospy.ServiceException, e:
-            print 'Service call failed: %s' % e
+        pass
 
     def __cancel_callback(self, gh):
         self.__movebase_client.cancel_goal()
         rospy.logwarn('cancel callback')
 
+    def __rotate(self, delta):
+        try :
+            pose, quaternion = self.__tf_listener.lookupTransform('odom', self.__base_frame, rospy.Time(0))
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+            rospy.logwarn(e)
+            rospy.logwarn('tf error')
+
+        (roll, pitch, yaw) = euler_from_quaternion(quaternion)
+        target_yaw = yaw + delta
+        if target_yaw > math.pi:
+            target_yaw = target_yaw - (2.0 * math.pi)
+        elif target_yaw < -math.pi:
+            target_yaw = target_yaw + 2.0 * math.pi
+
+        rospy.loginfo('rotate %f to %f', delta, target_yaw)
+
+        cmd = Twist()
+        time = rospy.Time.now() + rospy.Duration(15)
+        while rospy.Time.now()<time and not rospy.is_shutdown() and target_yaw-yaw>0.01:
+            try :
+                pose, quaternion = self.__tf_listener.lookupTransform('odom', self.__base_frame, rospy.Time(0))
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                rospy.logwarn(e)
+                rospy.logwarn('tf error')
+
+            (roll, pitch, yaw) = euler_from_quaternion(quaternion)
+
+            cmd.angular.z =  abs(target_yaw-yaw) * 0.5
+
+            if cmd.angular.z < 0.05:
+                cmd.angular.z = 0.05
+
+            self.__cmd_pub.publish(cmd)
+            rospy.loginfo('rotate %f : %f', target_yaw, yaw)
+
+    def __head_align(self):
+        cmd = Twist()
+
+        time = rospy.Time.now() + rospy.Duration(5)
+        while rospy.Time.now() < time:
+            try :
+                dock_pose, dock_quaternion = self.__tf_listener.lookupTransform(self.__base_frame, 'dock', rospy.Time(0))
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                rospy.logwarn(e)
+                rospy.logwarn('tf error')
+
+            if dock_pose[1] < 0.01:
+                cmd.angular.z = -0.05
+            elif dock_pose[1] > 0.01:
+                cmd.angular.z = 0.05
+            else:
+                cmd.angular.z = 0.00
+                self.__cmd_pub.publish(cmd)
+                break
+
+            # rospy.loginfo('algin %f, speed %f', dock_pose[1], cmd.angular.z)
+            self.__cmd_pub.publish(cmd)
+
     def __moveto_dock(self):
         cmd = Twist()
-        cmd.linear.x = self.__dock_speed
+        cmd.linear.x = -self.__dock_speed
 
         ca_feedback = DockFeedback()
 
@@ -126,7 +177,7 @@ class DockActionServer(ActionServer):
             rospy.logwarn('tf error')
 
         delta_distance = 0
-        while delta_distance < self.__dock_distance-0.30 and not rospy.is_shutdown():
+        while delta_distance < self.__dock_distance-0.3 and not rospy.is_shutdown():
             self.__cmd_pub.publish(cmd)
 
             try :
@@ -190,11 +241,15 @@ class DockActionServer(ActionServer):
         self.__movebase_client.wait_for_result()
         rospy.loginfo('arrived dock_ready_pose_2')
 
-        # self.__moveto_dock()
+        self.__head_align()
+
+        self.__rotate(math.pi)
+
+        self.__moveto_dock()
 
     def __undock(self):
         cmd = Twist()
-        cmd.linear.x = -self.__dock_speed
+        cmd.linear.x = self.__dock_speed
 
         ca_feedback = DockFeedback()
 

@@ -16,12 +16,12 @@ from geometry_msgs.msg import PoseStamped
 
 import icp
 
-min_detect_angle = -math.pi/3.0         # now: -50 degree # -math.pi/4.0
-max_detect_angle = math.pi/3.0          # now: 50 degree  # math.pi/4.0
+min_detect_angle = -math.pi/3.6         # now: -50 degree
+max_detect_angle = math.pi/3.6          # now: 50 degree
 
 find_dock = False
 cluster_threshold = 0.04            # cluster distance threshold
-icp_distance_threshold = 0.01
+icp_distance_threshold = 0.05
 potential_clouds_min_points = 80
 
 T = np.identity(4)
