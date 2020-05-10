@@ -116,7 +116,7 @@ bool iqr::CasterHardware::SerialPortInit(serial::Serial &serial_option, std::str
 	try {
 	  serial_option.setPort(port);
 	  serial_option.setBaudrate(baudrate);
-	  serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(50);
+	  serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(100);
 	  serial_option.setTimeout(serial_timeout);
 	  serial_option.open();
 	  serial_option.setRTS(false);
@@ -462,7 +462,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     buf[0] = 0x01;                    // ID
     buf[1] = 0x03;                    // write multi register
     buf[2] = 0x00;                    // Starting Address Hi
-    buf[3] = 0x04;                    // Starting Address Lo
+    buf[3] = 0x06;                    // Starting Address Lo
     buf[4] = 0x00;                    // Quantity of Registers Hi
     buf[5] = 0x01;                    // Quantity of Registers Lo
 
@@ -471,6 +471,8 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     memcpy(buf+6, &crc, 2);
 
     serial_port_body_.write(buf, 8);
+
+    // ros::Duration(0.005).sleep();
 
     bzero(buf, 13);
     serial_port_body_.read(buf, 7);
@@ -481,9 +483,9 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     t_data[1] = buf[3];
     memcpy(&position, t_data, 2);
     body_joint_.position = static_cast<double>(position) / 100000.0f;
-  }
 
-  // // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+    // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+  }
 
   joints_[kLeftMotor].velocity = motor_status_[kLeftMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
   joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
@@ -558,22 +560,22 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
   serial_port_driver_.write(command_vel_right);
   // serial_port_driver_.read(buf_clear, serial_port_driver_.available());
 
-  if(body_joint_name_ != "") {
-    uint8_t buf[15];
-    bzero(buf, 15);
+  if(body_joint_name_ != "" and abs(body_joint_.position-body_joint_.position_command)>0.001) {
+    uint8_t buf[13];
+    bzero(buf, 13);
 
     // send request
     buf[0] = 0x01;                    // ID
     buf[1] = 0x10;                    // write multi register
     buf[2] = 0x00;                    // Starting Address Hi
-    buf[3] = 0x05;                    // Starting Address Lo
+    buf[3] = 0x07;                    // Starting Address Lo
     buf[4] = 0x00;                    // Quantity of Registers Hi
-    buf[5] = 0x03;                    // Quantity of Registers Lo
-    buf[6] = 0x06;                    // Byte Count
+    buf[5] = 0x02;                    // Quantity of Registers Lo
+    buf[6] = 0x04;                    // Byte Count
 
-    // set enable
+    // set speed 80
     buf[7] = 0x00;
-    buf[8] = 0x01;
+    buf[8] = 0x50;
 
     // set position
     uint8_t t_data[2];
@@ -582,22 +584,20 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
     buf[9] = t_data[1];
     buf[10] = t_data[0];
 
-    // set speed 80
-    buf[11] = 0x00;
-    buf[12] = 0x50;
-
     // crc
-    uint16_t crc = CRC16(buf, 13);
-    memcpy(buf+13, &crc, 2);
+    uint16_t crc = CRC16(buf, 11);
+    memcpy(buf+11, &crc, 2);
 
-    serial_port_body_.write(buf, 15);
+    serial_port_body_.write(buf, 13);
 
-    bzero(buf, 15);
+    // ros::Duration(0.05).sleep();
+
+    bzero(buf, 13);
     serial_port_body_.read(buf, 8);
-  }
-  
-  // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
-  // ROS_INFO("body command: %lf", body_joint_.position_command);
+    // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+  }
+
+  // ROS_INFO("body command: %lf, %lf, delta %lf", body_joint_.position_command, body_joint_.position, abs(body_joint_.position-body_joint_.position_command));
   // ROS_INFO("command: %f, %f; rad: %d, %d", joints_[0].velocity_command, joints_[1].velocity_command, speed[0], speed[1]);
 }
