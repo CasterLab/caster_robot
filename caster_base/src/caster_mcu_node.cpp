@@ -15,10 +15,10 @@ enum StateType {
 struct DCState {
   int32_t power_mw;
   int16_t current_ma;
-  int16_t velocity_mv;
+  int16_t voltage_mv;
 
   DCState():
-    power_mw(0), current_ma(0), velocity_mv(0) {
+    power_mw(0), current_ma(0), voltage_mv(0) {
   }
 };
 
@@ -49,19 +49,19 @@ void FrameHandler(const uint8_t *frame_buffer, uint16_t frame_length) {
 
   memcpy(&hardware_state.dc_05v.power_mw, frame_buffer+3, 4);
   memcpy(&hardware_state.dc_05v.current_ma, frame_buffer+7, 2);
-  memcpy(&hardware_state.dc_05v.velocity_mv, frame_buffer+9, 2);
+  memcpy(&hardware_state.dc_05v.voltage_mv, frame_buffer+9, 2);
 
   memcpy(&hardware_state.dc_12v.power_mw, frame_buffer+11, 4);
   memcpy(&hardware_state.dc_12v.current_ma, frame_buffer+15, 2);
-  memcpy(&hardware_state.dc_12v.velocity_mv, frame_buffer+17, 2);
+  memcpy(&hardware_state.dc_12v.voltage_mv, frame_buffer+17, 2);
 
   memcpy(&hardware_state.dc_19v.power_mw, frame_buffer+19, 4);
   memcpy(&hardware_state.dc_19v.current_ma, frame_buffer+23, 2);
-  memcpy(&hardware_state.dc_19v.velocity_mv, frame_buffer+25, 2);
+  memcpy(&hardware_state.dc_19v.voltage_mv, frame_buffer+25, 2);
 
   memcpy(&hardware_state.dc_24v.power_mw, frame_buffer+27, 4);
   memcpy(&hardware_state.dc_24v.current_ma, frame_buffer+31, 2);
-  memcpy(&hardware_state.dc_24v.velocity_mv, frame_buffer+33, 2);
+  memcpy(&hardware_state.dc_24v.voltage_mv, frame_buffer+33, 2);
 
   // ROS_INFO("get data");
 }
@@ -70,22 +70,22 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   status.add("Charger Detect", hardware_state.charger_detect);
 
   status.addf("DC-05V Current (A)", "%.3f", hardware_state.dc_05v.current_ma / 1000.0);
-  status.addf("DC-05V Velocity (V)", "%.2f", hardware_state.dc_05v.velocity_mv / 1000.0);
+  status.addf("DC-05V Voltage (V)", "%.2f", hardware_state.dc_05v.voltage_mv / 1000.0);
   status.addf("DC-05V Power (W)", "%.4f", hardware_state.dc_05v.power_mw / 1000.0);
 
   status.addf("DC-12V Current (A)", "%.3f", hardware_state.dc_12v.current_ma / 1000.0);
-  status.addf("DC-12V Velocity (V)", "%.2f", hardware_state.dc_12v.velocity_mv / 1000.0);
+  status.addf("DC-12V Voltage (V)", "%.2f", hardware_state.dc_12v.voltage_mv / 1000.0);
   status.addf("DC-12V Power (W)", "%.4f", hardware_state.dc_12v.power_mw / 1000.0);
 
   status.addf("DC-19V Current (A)", "%.3f", hardware_state.dc_19v.current_ma / 1000.0);
-  status.addf("DC-19V Velocity (V)", "%.2f", hardware_state.dc_19v.velocity_mv / 1000.0);
+  status.addf("DC-19V Voltage (V)", "%.2f", hardware_state.dc_19v.voltage_mv / 1000.0);
   status.addf("DC-19V Power (W)", "%.4f", hardware_state.dc_19v.power_mw / 1000.0);
 
   status.addf("DC-24V Current (A)", "%.3f", hardware_state.dc_24v.current_ma / 1000.0);
-  status.addf("DC-24V Velocity (V)", "%.2f", hardware_state.dc_24v.velocity_mv / 1000.0);
+  status.addf("DC-24V Voltage (V)", "%.2f", hardware_state.dc_24v.voltage_mv / 1000.0);
   status.addf("DC-24V Power (W)", "%.4f", hardware_state.dc_24v.power_mw / 1000.0);
 
-  status.addf("DC-Full Power (W)", "%.4f", (hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw) / 1000.0);
+  status.addf("DC-ALL Power (W)", "%.4f", (hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw) / 1000.0);
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
   if(hardware_state.halt == true) {
@@ -93,6 +93,56 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   }
   if(hardware_state.e_stop == true) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "E-Stop active");
+  }
+
+  // DC 5V
+  if(hardware_state.dc_05v.voltage_mv < 4500 || hardware_state.dc_05v.voltage_mv > 5500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Voltage too low / high");
+  }
+  if(hardware_state.dc_05v.current_ma < 0 || hardware_state.dc_05v.current_ma > 2500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Current too low / high");
+  }
+  if(hardware_state.dc_05v.power_mw < 0 || hardware_state.dc_05v.power_mw > 15000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Power too low / high");
+  }
+
+  // DC-12V
+  if(hardware_state.dc_12v.voltage_mv < 11500 || hardware_state.dc_12v.voltage_mv > 12500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Voltage too low / high");
+  }
+  if(hardware_state.dc_12v.current_ma < 0 || hardware_state.dc_12v.current_ma > 5500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Current too low / high");
+  }
+  if(hardware_state.dc_12v.power_mw < 0 || hardware_state.dc_12v.power_mw > 65000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Power too low / high");
+  }
+
+  // DC-19V
+  if(hardware_state.dc_19v.voltage_mv < 18500 || hardware_state.dc_19v.voltage_mv > 19500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Voltage too low / high");
+  }
+  if(hardware_state.dc_19v.current_ma < 0 || hardware_state.dc_19v.current_ma > 5000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Current too low / high");
+  }
+  if(hardware_state.dc_19v.power_mw < 0 || hardware_state.dc_19v.power_mw > 100000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Power too low / high");
+  }
+
+  // DC-24V
+  if(hardware_state.dc_24v.voltage_mv < 23500 || hardware_state.dc_24v.voltage_mv > 24500) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Voltage too low / high");
+  }
+  if(hardware_state.dc_24v.current_ma < 0 || hardware_state.dc_24v.current_ma > 10000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Current too low / high");
+  }
+  if(hardware_state.dc_24v.power_mw < 0 || hardware_state.dc_24v.power_mw > 240000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Power too low / high");
+  }
+
+  // DC-ALL
+  int32_t power_mw = hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw;
+  if(power_mw < 0 || power_mw > 240000) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-ALL Power too low / high");
   }
 }
 
