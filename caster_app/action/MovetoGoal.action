@@ -1,8 +1,0 @@
-# Define the goal
-string goal_name
----
-# Define the result
-string moveto_result
----
-# Define a feedback message
-string moveto_feedback

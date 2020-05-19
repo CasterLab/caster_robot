@@ -38,6 +38,7 @@
   <depend>joy</depend>
   <depend>joy_teleop</depend>
 
+  <depend>caster_msgs</depend>
   <depend>caster_control</depend>
   <depend>caster_description</depend>
 

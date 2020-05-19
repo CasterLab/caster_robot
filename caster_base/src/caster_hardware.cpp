@@ -74,7 +74,7 @@ void iqr::CasterHardware::ControllerTimerCallback(const ros::TimerEvent&) {
   WriteCommandsToHardware();
 }
 
-bool iqr::CasterHardware::SetDigitalOutputCB(caster_base::SetDigitalOutput::Request &req, caster_base::SetDigitalOutput::Response &res) {
+bool iqr::CasterHardware::SetDigitalOutputCB(caster_msgs::SetDigitalOutput::Request &req, caster_msgs::SetDigitalOutput::Response &res) {
   ROS_INFO("set digital output %d to %d", req.io, req.active);
 
   if(req.io>=1 && req.io<=4) {

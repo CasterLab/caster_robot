@@ -20,7 +20,7 @@
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/joint_command_interface.h>
 
-#include <caster_base/SetDigitalOutput.h>
+#include <caster_msgs/SetDigitalOutput.h>
 
 #define REDUCTION_RATIO                 15.0
 
@@ -119,7 +119,7 @@ class CasterHardware : public hardware_interface::RobotHW {
     void StatusCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
     void ControllerCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
 
-    bool SetDigitalOutputCB(caster_base::SetDigitalOutput::Request &req, caster_base::SetDigitalOutput::Response &res);
+    bool SetDigitalOutputCB(caster_msgs::SetDigitalOutput::Request &req, caster_msgs::SetDigitalOutput::Response &res);
 
     std::string node_name_;
 
