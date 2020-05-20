@@ -1,6 +1,6 @@
 <launch>
   <arg name="log_type" default="screen"/>
-  <arg name="base_version" default="v1" />
+  <arg name="base_version" default="v2" />
 
   <!-- Arguments -->
   <arg name="scan_topic"     default="scan"/>

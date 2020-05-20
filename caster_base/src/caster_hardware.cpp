@@ -3,14 +3,21 @@
 #include <math.h>
 #include <errno.h>
 
-const uint16_t kCanOpenSendHeader = 0x600;
-const uint16_t kCanOpenRecvHeader = 0x580;
-
 /**
 * Initialize Caster hardware
 */
 iqr::CasterHardware::CasterHardware() {
 
+}
+
+iqr::CasterHardware::~CasterHardware() {
+  if(serial_port_driver_.isOpen()) {
+    serial_port_driver_.close();
+  }
+  
+  if(serial_port_body_.isOpen()) {
+    serial_port_body_.close();
+  }
 }
 
 uint16_t iqr::CasterHardware::CRC16 (const uint8_t *data, uint16_t length) {
@@ -69,8 +76,18 @@ std::string iqr::CasterHardware::ToBinary(size_t data, uint8_t length) {
 }
 
 void iqr::CasterHardware::ControllerTimerCallback(const ros::TimerEvent&) {
+  static ros::Time start_time = ros::Time::now();
+
   UpdateHardwareStatus();
-  controller_manager_->update(ros::Time::now(), ros::Duration(0.1));
+  SerialReadUpadata();
+
+  ros::Duration delta = ros::Time::now() - start_time;
+  controller_manager_->update(ros::Time::now(), delta);
+  // controller_manager_->update(ros::Time::now(), ros::Duration(0.025));
+
+  // ROS_INFO("delta: %lf", delta.toSec()*1000.0);
+  start_time = ros::Time::now();
+  
   WriteCommandsToHardware();
 }
 
@@ -79,9 +96,11 @@ bool iqr::CasterHardware::SetDigitalOutputCB(caster_msgs::SetDigitalOutput::Requ
 
   if(req.io>=1 && req.io<=4) {
     if(req.active == true) {
-      Command(kSetIndividualDO, 0x00, static_cast<uint8_t>(req.io), 1);
+      std::string setIndividual = "!D0 " + std::to_string(req.io) + "\r";
+      serial_port_driver_.write(setIndividual);
     } else if (req.active == false) {
-      Command(kResetIndividualDO, 0x00, static_cast<uint8_t>(req.io), 1);
+      std::string resetIndividual = "!D1 " + std::to_string(req.io) + "\r";
+      serial_port_driver_.write(resetIndividual);
     }
 
     res.result = true;
@@ -93,57 +112,57 @@ bool iqr::CasterHardware::SetDigitalOutputCB(caster_msgs::SetDigitalOutput::Requ
   return true;
 }
 
+bool iqr::CasterHardware::SerialPortInit(serial::Serial &serial_option, std::string port, int baudrate) {
+	try {
+	  serial_option.setPort(port);
+	  serial_option.setBaudrate(baudrate);
+	  serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(100);
+	  serial_option.setTimeout(serial_timeout);
+	  serial_option.open();
+	  serial_option.setRTS(false);
+	  serial_option.setDTR(false);
+	} catch (serial::IOException& e) {
+	  ROS_ERROR_STREAM("Unable to open serial port:" + port);
+	  // return false;
+	}
+}
+
 void iqr::CasterHardware::Initialize(std::string node_name, ros::NodeHandle& nh, ros::NodeHandle& private_nh) {
   node_name_ = node_name;
   nh_ = nh;
   private_nh_ = private_nh;
 
-  private_nh_.param<int>("baudrate", baudrate_, 115200);
-  private_nh_.param<std::string>("port", port_, "/dev/caster_body");
+  private_nh_.param<int>("base_baudrate", baudrate_driver_, 115200);
+  private_nh_.param<std::string>("base_port", port_driver_, "/dev/caster_base");
+  private_nh_.param<int>("body_baudrate", baudrate_body_, 115200);
+  private_nh_.param<std::string>("body_port", port_body_, "/dev/caster_body");
 
-  private_nh_.param<int>("can_id", can_id_, 1);
-  private_nh_.param<std::string>("can_send_topic", send_topic_, "sent_messages");
-  private_nh_.param<std::string>("can_receive_topic", receive_topic_, "received_messages");
-  
   private_nh_.param<std::string>("body_joint", body_joint_name_, "");
   private_nh_.param<std::string>("left_wheel_joint", left_wheel_joint_, "drive_wheel_left_joint");
   private_nh_.param<std::string>("right_wheel_joint", right_wheel_joint_, "drive_wheel_right_joint");
 
-  can_pub_ = nh_.advertise<can_msgs::Frame>(send_topic_, 1000);
-  can_sub_ = nh_.subscribe<can_msgs::Frame>(receive_topic_, 10, &iqr::CasterHardware::CanReceiveCallback, this);
-
   set_io_service_ = private_nh_.advertiseService("set_digital_output", &iqr::CasterHardware::SetDigitalOutputCB, this);
 
   controller_manager_ = new controller_manager::ControllerManager(this, nh);
-  timer_ = nh.createTimer(ros::Duration(0.025), &iqr::CasterHardware::ControllerTimerCallback, this);
+  timer_ = nh.createTimer(ros::Duration(0.04), &iqr::CasterHardware::ControllerTimerCallback, this);
 
   RegisterControlInterfaces();
 
   if(body_joint_name_ != "") {
     ROS_INFO_STREAM("Start body control");
-    try {
-      serial_port_.setPort(port_);
-      serial_port_.setBaudrate(baudrate_);
-      serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(1000);
-      serial_port_.setTimeout(serial_timeout);
-      serial_port_.open();
-      serial_port_.setRTS(false);
-      serial_port_.setDTR(false);
-    } catch (serial::IOException& e) {
-      ROS_ERROR_STREAM("Unable to open serial port");
-      // return false;
-    }
+	  SerialPortInit(serial_port_body_, port_body_, baudrate_body_);
   }
+  SerialPortInit(serial_port_driver_, port_driver_, baudrate_driver_);
 
   diagnostic_updater_.setHardwareID("caster_robot");
   diagnostic_updater_.add("Left motor", this, &iqr::CasterHardware::LeftMotorCheck);
   diagnostic_updater_.add("Right motor", this, &iqr::CasterHardware::RightMotorCheck);
   diagnostic_updater_.add("Status", this, &iqr::CasterHardware::StatusCheck);
   diagnostic_updater_.add("Controller", this, &iqr::CasterHardware::ControllerCheck);
-
+  
   // Clear();
 
-  ROS_INFO("can_pub: %s, can_sub: %s, can_id: %d", send_topic_.c_str(), receive_topic_.c_str(), can_id_);
+  // ROS_INFO("can_pub: %s, can_sub: %s, can_id: %d", send_topic_.c_str(), receive_topic_.c_str(), can_id_);
   ROS_INFO("caster base initialized");
 }
 
@@ -158,8 +177,10 @@ void iqr::CasterHardware::LeftMotorCheck(diagnostic_updater::DiagnosticStatusWra
    * f7 = Amps Trigger activated
   */
 
-  status.add("current (A)", motor_status_[kLeftMotor].current);
-  status.add("speed (RPM)", motor_status_[kLeftMotor].rpm);
+  status.add("Speed (RPM)", motor_status_[kLeftMotor].rpm);
+  status.add("Current (A)", motor_status_[kLeftMotor].current);
+  status.add("Temperature (℃)", motor_status_[kLeftMotor].temperature);
+  status.add("Temperature MCU (℃)", motor_status_[kLeftMotor].temperature_MCU);
 
   // ROS_INFO("motor %s", ToBinary(motor_status_[kLeftMotor].status, 1).c_str());
 
@@ -199,8 +220,10 @@ void iqr::CasterHardware::RightMotorCheck(diagnostic_updater::DiagnosticStatusWr
    * f7 = Amps Trigger activated
   */
 
-  status.add("current (A)", motor_status_[kRightMotor].current);
-  status.add("speed (RPM)", motor_status_[kRightMotor].rpm);
+  status.add("Speed (RPM)", motor_status_[kRightMotor].rpm);
+  status.add("Current (A)", motor_status_[kRightMotor].current);
+  status.add("Temperature (℃)", motor_status_[kRightMotor].temperature);
+  status.add("Temperature MCU (℃)", motor_status_[kRightMotor].temperature_MCU);
   // status.add("counter", motor_status_[kRightMotor].counter);
 
   // ROS_INFO("motor %s", ToBinary(motor_status_[kLeftMotor].status, 1).c_str());
@@ -257,7 +280,7 @@ void iqr::CasterHardware::StatusCheck(diagnostic_updater::DiagnosticStatusWrappe
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
   if(contorl_mode == "unknown") {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "unknown control mode");
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Unknown control mode");
   }
   if((status_flags_>>3)&0x01 == 0x01) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Power stage off");
@@ -302,7 +325,7 @@ void iqr::CasterHardware::ControllerCheck(diagnostic_updater::DiagnosticStatusWr
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Short circuit");
   }
   if((fault_flags_>>4)&0x01 == 0x01) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Emergency stop");
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Emergency stop");
   }
   if((fault_flags_>>5)&0x01 == 0x01) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Brushless sensor fault");
@@ -315,72 +338,109 @@ void iqr::CasterHardware::ControllerCheck(diagnostic_updater::DiagnosticStatusWr
   }
 }
 
-void iqr::CasterHardware::CanReceiveCallback(const can_msgs::Frame::ConstPtr& msg) {
-  // ROS_INFO_STREAM("get msg: " << msg->id);
-  if(msg->id == kCanOpenRecvHeader+can_id_) {
-    // ROS_INFO("data length: %d", msg->dlc);
+int16_t* iqr::CasterHardware::BufferSpilt(std::string buf_driver) {
+  
+  // datacheck
+  // find
+  int datacheck = 1;
+  int index_data = buf_driver.find("?T 1");
 
-    if((msg->data[0]&0xF0) == kQuery<<4) {
-      uint16_t index = (msg->data[2]<<8) + msg->data[1];
-      uint8_t sub_index = msg->data[3];
-      
-      // ROS_INFO("Response: query %02X,%02X successful", index, sub_index);
+  if (index_data != -1)
+  {
+    char *data_n = new char[20];
+    char *buf_c = new char[1000];
+    char const *delim1 = "\r";
+    char const *delim2 = "=";
+    std::vector<std::string> buf_spilt(27);
 
-      switch (index) {
-        case kReadMotorAmps: {
-          int16_t temp_current_x10;
-          memcpy(&temp_current_x10, msg->data.data()+4, 2);
-          motor_status_[sub_index-1].current = temp_current_x10 / 10.0;
-          // ROS_INFO("Query response, motor current %d: %f", sub_index, motor_status_[sub_index-1].current);
-          break;
-        }
-        case kReadAbsBLCounter: {
-          memcpy(&motor_status_[sub_index-1].counter, msg->data.data()+4, 4);
-          if(motor_status_[sub_index-1].counter_reset == false) {
-            motor_status_[sub_index-1].counter_offset = motor_status_[sub_index-1].counter;
-            motor_status_[sub_index-1].counter_reset = true;
-          }
-          // ROS_INFO("Query response, counter %d: %d", sub_index, motor_status_[sub_index-1].counter);
-          break;
-        }
-        case kReadBLMotorRPM: {
-          memcpy(&motor_status_[sub_index-1].rpm, msg->data.data()+4, 2);
-          // ROS_INFO("Query response, rpm %d: %d", sub_index, motor_status_[sub_index-1].rpm);
-          break;
-        }
-        case kReadStatusFlags: {
-          status_flags_ = msg->data[4];
-          // ROS_INFO("Query response, status flags %s", ToBinary(status_flags_, 1).c_str());
-          break;
-        }
-        case kReadFaultFlags: {
-          fault_flags_ = msg->data[4];
-          // ROS_INFO("Query response, fault flags %s", ToBinary(fault_flags_, 1).c_str());
-          break;
-        }
-        case kReadMotorStatusFlags: {
-          /* TODO: the index of data is different from doc */
-          motor_status_[kLeftMotor].status = msg->data[4];
-          motor_status_[kRightMotor].status = msg->data[6];
-          // ROS_INFO("Query response, motor status flags %s: %s", ToBinary(motor_status_[kLeftMotor].status, 1).c_str(), ToBinary(motor_status_[kRightMotor].status, 1).c_str());
-          break;
-        }
-        default: {
+    buf_driver = buf_driver.substr(index_data);
+    strcpy(buf_c, buf_driver.c_str());
+    buf_spilt[0] = strtok(buf_c, delim1); 
 
+    for (int i = 1; i < 26; ++i)
+    {
+      // ROS_INFO("%s", buf_spilt[i-1].c_str());
+      data_n = strtok(NULL, delim1);
+      if (data_n != NULL)
+      {
+        buf_spilt[i] = data_n;
+      }
+      else {
+        datacheck = 0;
+        i = 26;
+      }
+    }
+    // ROS_INFO("%s", buf_spilt[25].c_str());
+    if (datacheck == 1)
+    {
+      for (int i = 1; i < 26; i+=2)
+      {
+        char *buf_n = new char[20];
+        strcpy(buf_n, buf_spilt[i].c_str());
+        char *temp2 = strtok(buf_n, delim2);
+        if (temp2 == data_type[(i-1)/2])
+        {
+          temp2 = strtok(NULL, delim2);
+          num[(i-1)/2] = atoi(temp2);
         }
       }
-    } else if((msg->data[0]&0xF0) == kResponseCommandSuccess<<4) {
-      uint16_t index = (msg->data[2]<<8) + msg->data[1];
-      uint8_t sub_index = msg->data[3];
-      // ROS_INFO("Response: command %02X,%02X successful", index, sub_index);
     }
+  }
+  return num;
+}
+
+void iqr::CasterHardware::SerialReadUpadata() {
+
+  std::string buf_driver; 
+  if (serial_port_driver_.available())
+  {
+    serial_port_driver_.read(buf_driver, serial_port_driver_.available());
+    // for (int i = 0; i < buf_driver.size(); i++)
+    // {
+    //   ROS_INFO("%c", *(buf_driver.c_str()+i));
+    // }
+
+    if (buf_driver.size() != 0)
+    {  
+      int16_t *data = BufferSpilt(buf_driver);
+
+      for (int index_cc = 0; index_cc < 2; ++index_cc)
+      {
+        motor_status_[index_cc].temperature = data[1+index_cc];
+        motor_status_[index_cc].temperature_MCU = data[0];
+        motor_status_[index_cc].counter = data[5+index_cc];
+        if(motor_status_[index_cc].counter_reset == false) {
+          motor_status_[index_cc].counter_offset = motor_status_[index_cc].counter;
+          motor_status_[index_cc].counter_reset = true;
+        }
+        motor_status_[index_cc].current = data[3+index_cc] / 10.0;
+        motor_status_[index_cc].rpm = data[7+index_cc];
+        motor_status_[index_cc].status = data[9+index_cc];
+      } 
+      status_flags_ = data[11];
+      fault_flags_ = data[12];  
+      // ROS_INFO("Response: querysuccessful");
+      // ROS_INFO("Query response, motor current 0: %f", motor_status_[0].current);
+      // ROS_INFO("Query response, motor current 1: %f", motor_status_[1].current);
+      // ROS_INFO("Query response, motor Tem MCU: %i", motor_status_[0].temperature_MCU);
+      // ROS_INFO("Query response, motor Tem 1: %i", motor_status_[0].temperature);
+      // ROS_INFO("Query response, motor Tem 2: %i", motor_status_[1].temperature);
+      // ROS_INFO("Query response, motor counter 1: %i", motor_status_[0].counter);
+      // ROS_INFO("Query response, motor counter 2: %i", motor_status_[1].counter);
+      // ROS_INFO("Query response, motor rpm 1: %i", motor_status_[0].rpm);
+      // ROS_INFO("Query response, motor rpm 2: %i", motor_status_[1].rpm);
+      // ROS_INFO("Query response, motor status_flags: %i", status_flags_);
+      // ROS_INFO("Query response, motor fault_flags: %i", fault_flags_);
+      // ROS_INFO("Query response, motor status 1: %i", motor_status_[1].status);
+      // ROS_INFO("Query response, motor status 2: %i", motor_status_[1].status);
+    } 
   }
 }
 
 void iqr::CasterHardware::Clear() {
   /* Clear BL Counter */
-  // Command(kSetBLCounter, static_cast<uint8_t>(kLeftMotor+1), 0, 4);
-  // Command(kSetBLCounter, static_cast<uint8_t>(kRightMotor+1), 0, 4);
+  // serial_port_driver_.write("!CB 1 0\r");
+  // serial_port_driver_.write("!CB 2 0\r");
   // motor_status_[kLeftMotor].counter_offset = motor_status_[kLeftMotor].counter;
   // motor_status_[kRightMotor].counter_offset = motor_status_[kRightMotor].counter;
 }
@@ -388,42 +448,13 @@ void iqr::CasterHardware::Clear() {
 void iqr::CasterHardware::UpdateHardwareStatus() {
   bool success = false;
   uint32_t data;
-
   if(body_joint_name_ != "") {
     body_joint_.position = body_joint_.position_command;
   }
-
-  /* request motor speed */
-  // int16_t l_rpm=-1, r_rpm=-1;
-  // uint32_t left_rpm=-1, right_rpm=-1;
-  success = Query(kReadBLMotorRPM, static_cast<uint8_t>(kLeftMotor+1), 2);
-  success = Query(kReadBLMotorRPM, static_cast<uint8_t>(kRightMotor+1), 2);
-  // l_rpm = static_cast<int16_t>(left_rpm);
-  // r_rpm = static_cast<int16_t>(right_rpm);
-
-  /* request motor counter */
-  // int32_t l_count=-1, r_count=-1;
-  success = Query(kReadAbsBLCounter, static_cast<uint8_t>(kLeftMotor+1), 4);
-  success = Query(kReadAbsBLCounter, static_cast<uint8_t>(kRightMotor+1), 4);
-                 
-  // uint8_t status_flag;
-  success = Query(kReadStatusFlags, 0x00, 1);
-  // status_flag = static_cast<uint8_t>(data);
-
-  // uint8_t fault_flag;
-  success = Query(kReadFaultFlags, 0x00, 1);
-  // fault_flag = static_cast<uint8_t>(data);
-
-  /* TODO: strange rules for opencan id */
-  // uint8_t left_motor_flag, right_motor_flag;
-  success = Query(kReadMotorStatusFlags, 0x01, 4);
-  // left_motor_flag = data;
-  // right_motor_flag = data >> 16;
-
-  success = Query(kReadMotorAmps, 0x01, 4);
-  success = Query(kReadMotorAmps, 0x02, 4);
+  serial_port_driver_.write("?T 1_?T 2_?T 3_?A 1_?A 2_?CB 1_?CB 2_?BS 1_?BS 2_?FM 1_?FM 2_?FS_?FF\r");
 
   if(body_joint_name_ != "") {
+
     uint8_t buf[13];
     bzero(buf, 13);
 
@@ -431,7 +462,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     buf[0] = 0x01;                    // ID
     buf[1] = 0x03;                    // write multi register
     buf[2] = 0x00;                    // Starting Address Hi
-    buf[3] = 0x04;                    // Starting Address Lo
+    buf[3] = 0x06;                    // Starting Address Lo
     buf[4] = 0x00;                    // Quantity of Registers Hi
     buf[5] = 0x01;                    // Quantity of Registers Lo
 
@@ -439,10 +470,12 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     uint16_t crc = CRC16(buf, 6);
     memcpy(buf+6, &crc, 2);
 
-    serial_port_.write(buf, 8);
+    serial_port_body_.write(buf, 8);
+
+    // ros::Duration(0.005).sleep();
 
     bzero(buf, 13);
-    serial_port_.read(buf, 7);
+    serial_port_body_.read(buf, 7);
 
     uint16_t position;
     uint8_t t_data[2];
@@ -450,21 +483,23 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
     t_data[1] = buf[3];
     memcpy(&position, t_data, 2);
     body_joint_.position = static_cast<double>(position) / 100000.0f;
+
+    // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
   }
 
-  // ROS_INFO("rdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
-
   joints_[kLeftMotor].velocity = motor_status_[kLeftMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
-  joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
+  joints_[kRightMotor].velocity = motor_status_[kRightMotor].rpm / 60.0 / REDUCTION_RATIO * M_PI * 2.0;
 
   joints_[kLeftMotor].position = (motor_status_[kLeftMotor].counter-motor_status_[kLeftMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
-  joints_[kRightMotor].position = (motor_status_[kRightMotor].counter-motor_status_[kRightMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0 * -1.0;
+  joints_[kRightMotor].position = (motor_status_[kRightMotor].counter-motor_status_[kRightMotor].counter_offset) / 30.0 / REDUCTION_RATIO * M_PI * 2.0;
 
   diagnostic_updater_.update();
 
   // ROS_INFO("Body: %d, %lf", position, body_joint_.position);
-  // ROS_INFO("motor counter: %d, %d, %d, %d", motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter, motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm);
-  // ROS_INFO("motor counter: %f, %f, %d, %d", joints_[0].position, joints_[1].position, l_rpm, r_rpm);
+  // ROS_INFO("motor counter: %d, %d, %d, %d, %lf, %lf",
+  //           motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter,
+  //           motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm,
+  //           joints_[kLeftMotor].velocity, joints_[kRightMotor].velocity);
   // ROS_INFO("status: %s, fault: %s, left: %s, right: %s", \
             ToBinary(status_flag, sizeof(status_flag)).c_str(), ToBinary(fault_flag, sizeof(fault_flag)).c_str(), \
             ToBinary(left_motor_flag, sizeof(left_motor_flag)).c_str(), ToBinary(right_motor_flag, sizeof(right_motor_flag)).c_str());
@@ -493,7 +528,6 @@ void iqr::CasterHardware::RegisterControlInterfaces() {
 
   hardware_interface::JointStateHandle left_wheel_joint_state_handle(left_wheel_joint_, &joints_[0].position, &joints_[0].velocity, &joints_[0].effort);
   joint_state_interface_.registerHandle(left_wheel_joint_state_handle);
-
   hardware_interface::JointHandle left_wheel_joint_handle(left_wheel_joint_state_handle, &joints_[0].velocity_command);
   velocity_joint_interface_.registerHandle(left_wheel_joint_handle);
 
@@ -508,34 +542,40 @@ void iqr::CasterHardware::RegisterControlInterfaces() {
 }
 
 void iqr::CasterHardware::WriteCommandsToHardware() {
-  int32_t speed[2];
 
+  int32_t speed[2]; 
+  std::string buf_clear;
   if(body_joint_name_ != "") {
     // body_joint_.position = body_joint_.position_command;
   }
+  // ROS_INFO("Velocity left motor : %f", joints_[0].velocity_command);
 
-  speed[0] = static_cast<int32_t>(joints_[0].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60);
-  Command(kSetVelocity, static_cast<uint8_t>(kLeftMotor+1), static_cast<uint32_t>(speed[0]), 4);
+  // ROS_INFO("Velocity right motor : %f", joints_[1].velocity_command);
 
-  speed[1] = static_cast<int32_t>(joints_[1].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60) * -1.0;
-  Command(kSetVelocity, static_cast<uint8_t>(kRightMotor+1), static_cast<uint32_t>(speed[1]), 4);
+  speed[0] = joints_[0].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60;
+  std::string command_vel_left = "!S 1 " + std::to_string(speed[0]) + "\r";
+  serial_port_driver_.write(command_vel_left);
+  speed[1] = joints_[1].velocity_command / M_PI / 2.0 * REDUCTION_RATIO * 60;
+  std::string command_vel_right = "!S 2 " + std::to_string(speed[1]) + "\r";
+  serial_port_driver_.write(command_vel_right);
+  // serial_port_driver_.read(buf_clear, serial_port_driver_.available());
 
-  if(body_joint_name_ != "") {
-    uint8_t buf[15];
-    bzero(buf, 15);
+  if(body_joint_name_ != "" and abs(body_joint_.position-body_joint_.position_command)>0.001) {
+    uint8_t buf[13];
+    bzero(buf, 13);
 
     // send request
     buf[0] = 0x01;                    // ID
     buf[1] = 0x10;                    // write multi register
     buf[2] = 0x00;                    // Starting Address Hi
-    buf[3] = 0x05;                    // Starting Address Lo
+    buf[3] = 0x07;                    // Starting Address Lo
     buf[4] = 0x00;                    // Quantity of Registers Hi
-    buf[5] = 0x03;                    // Quantity of Registers Lo
-    buf[6] = 0x06;                    // Byte Count
+    buf[5] = 0x02;                    // Quantity of Registers Lo
+    buf[6] = 0x04;                    // Byte Count
 
-    // set enable
+    // set speed 80
     buf[7] = 0x00;
-    buf[8] = 0x01;
+    buf[8] = 0x50;
 
     // set position
     uint8_t t_data[2];
@@ -544,67 +584,20 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
     buf[9] = t_data[1];
     buf[10] = t_data[0];
 
-    // set speed 80
-    buf[11] = 0x00;
-    buf[12] = 0x50;
-
     // crc
-    uint16_t crc = CRC16(buf, 13);
-    memcpy(buf+13, &crc, 2);
+    uint16_t crc = CRC16(buf, 11);
+    memcpy(buf+11, &crc, 2);
 
-    serial_port_.write(buf, 15);
+    serial_port_body_.write(buf, 13);
 
-    bzero(buf, 15);
-    serial_port_.read(buf, 8);
+    // ros::Duration(0.05).sleep();
+
+    bzero(buf, 13);
+    serial_port_body_.read(buf, 8);
+
+    // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
   }
-  
-  // ROS_INFO("wdata: %02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
-  // ROS_INFO("body command: %lf", body_joint_.position_command);
+  // ROS_INFO("body command: %lf, %lf, delta %lf", body_joint_.position_command, body_joint_.position, abs(body_joint_.position-body_joint_.position_command));
   // ROS_INFO("command: %f, %f; rad: %d, %d", joints_[0].velocity_command, joints_[1].velocity_command, speed[0], speed[1]);
-}
-
-void iqr::CasterHardware::SendCanOpenData(uint32_t node_id, RoboteqClientCommandType type, RoboteqCanOpenObjectDictionary index, uint8_t sub_index, uint32_t data, uint8_t data_length) {
-  uint8_t buf[8];
-  bzero(buf, 8);
-
-  can_msgs::Frame frame;
-  frame.header.stamp = ros::Time::now();
-
-  frame.id = kCanOpenSendHeader + node_id;
-  frame.is_rtr = 0;
-  frame.is_extended = 0;
-  frame.is_error = 0;
-  frame.dlc = 8;
-
-  /* set command type and data length */
-  buf[0] = (type<<4) + ((4-data_length) << 2);
-
-  /* set index and sub index*/
-  memcpy(buf+1, &index, 2);
-  memcpy(buf+3, &sub_index, 1);
-
-  /* set data */
-  memcpy(buf+4, &data, data_length);
-
-  for(int i=0; i<8; i++) {
-    frame.data[i] = buf[i];
-  }
-
-  /* send */
-  // ROS_INFO("sending");
-  can_pub_.publish(frame);
-  // ROS_INFO("Sent");
-}
-
-bool iqr::CasterHardware::Query(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint8_t data_length) {
-  SendCanOpenData(can_id_, kQuery, query, sub_index, 0x0000, data_length);
-
-  return true;
-}
-
-bool iqr::CasterHardware::Command(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint32_t data, uint8_t data_length) {
-  SendCanOpenData(can_id_, kCommand, query, sub_index, data, data_length);
-
-  return true;
 }

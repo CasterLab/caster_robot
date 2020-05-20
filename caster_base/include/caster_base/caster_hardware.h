@@ -2,15 +2,16 @@
 #define CASTER_HARDWARE_SOCKETCAN_H_
 
 #include <string>
-
+#include <math.h>
+#include <errno.h>
+#include <vector>
 #include <cstdlib>
 #include <cstring>
-
+#include <typeinfo>
 #include <sys/types.h>
 
 #include <ros/ros.h>
 #include <serial/serial.h>
-#include <can_msgs/Frame.h>
 #include <sensor_msgs/JointState.h>
 #include <controller_manager/controller_manager.h>
 
@@ -22,12 +23,7 @@
 
 #include <caster_msgs/SetDigitalOutput.h>
 
-#define REDUCTION_RATIO                 15.0
-
-#define CANBUS_BASE_FRAME_FORMAT        0b00000000
-#define CANBUS_EXTENDED_FRAME_FORMAT    0b10000000
-#define CANBUS_REMOTE_FRAME             0b00000000
-#define CANBUS_DATA_FRAME               0b01000000
+#define REDUCTION_RATIO                 14.0
 
 namespace iqr {
 /**
@@ -36,35 +32,31 @@ namespace iqr {
 class CasterHardware : public hardware_interface::RobotHW {
   public:
     enum MotorIndex {
-      kLeftMotor = 0x00,
-      kRightMotor = 0x01, 
+      kLeftMotor = 0,
+      kRightMotor = 1,
     };
 
-    enum RoboteqClientCommandType {
-      kCommand = 0x02,
-      kQuery = 0x04,
-      kResponseCommandSuccess = 0x06,
-      kResponseMessageError = 0x08
-    };
-
-    enum RoboteqCanOpenObjectDictionary {
+    struct RoboteqCanOpenObjectDictionary
+    {
       /* runtime commands */
-      kSetVelocity = 0x2002,
-      kSetBLCounter = 0x2004,
-      kSetIndividualDO = 0x2009,
-      kResetIndividualDO = 0x200A,
+      std::string kSetVelocity = "!S";
+      std::string kSetBLCounter = "!CB";
+      std::string kSetIndividualDO = "!D1";
+      std::string kResetIndividualDO = "!D0";
 
       /* runtime queries */
-      kReadMotorAmps = 0x2100,
-      kReadAbsBLCounter = 0x2105,
-      kReadBLMotorRPM = 0x210A,
-      kReadStatusFlags = 0x2111,
-      kReadFaultFlags = 0x2112,
-      kReadMotorStatusFlags = 0x2122,
+      std::string kReadMotorAmps = "?A";
+      std::string kReadAbsBLCounter = "?CB";
+      std::string kReadBLMotorRPM = "?BS";
+      std::string kReadStatusFlags = "?FS";
+      std::string kReadFaultFlags = "?FF";
+      std::string kReadMotorStatusFlags = "?FM";
     };
 
     struct MotorStatus {
       float current;
+      int16_t temperature;
+      int16_t temperature_MCU;
       int16_t rpm;
       int32_t counter;
       int32_t counter_offset;
@@ -89,9 +81,12 @@ class CasterHardware : public hardware_interface::RobotHW {
       { }
     };
 
-    CasterHardware();
+    int16_t *num = new int16_t[14];
+    std::string data_type[13] = {"T", "T", "T", "A", "A", "CB", "CB", "BS", "BS", "FM", "FM", "FS","FF"};
 
-    bool Connect();
+    CasterHardware();
+    ~CasterHardware();
+
     void Initialize(std::string node_name, ros::NodeHandle& nh, ros::NodeHandle& private_nh);
 
     void UpdateHardwareStatus();
@@ -105,12 +100,7 @@ class CasterHardware : public hardware_interface::RobotHW {
 
     std::string ToBinary(size_t data, uint8_t length);
     uint16_t CRC16 (const uint8_t *data, uint16_t length);
-
-    bool Command(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint32_t data, uint8_t data_length);
-    bool Query(RoboteqCanOpenObjectDictionary query, uint8_t sub_index, uint8_t data_length);
-    void SendCanOpenData(uint32_t node_id, RoboteqClientCommandType type, RoboteqCanOpenObjectDictionary index, uint8_t sub_index, uint32_t data, uint8_t data_length);
-
-    void CanReceiveCallback(const can_msgs::Frame::ConstPtr& msg);
+    int16_t* BufferSpilt(std::string buf_driver);
 
     void ControllerTimerCallback(const ros::TimerEvent&);
 
@@ -118,9 +108,9 @@ class CasterHardware : public hardware_interface::RobotHW {
     void RightMotorCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
     void StatusCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
     void ControllerCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
-
+    void SerialReadUpadata();
     bool SetDigitalOutputCB(caster_msgs::SetDigitalOutput::Request &req, caster_msgs::SetDigitalOutput::Response &res);
-
+		bool SerialPortInit(serial::Serial &serial_option, std::string port, int baudrate);
     std::string node_name_;
 
     ros::NodeHandle nh_;
@@ -157,11 +147,13 @@ class CasterHardware : public hardware_interface::RobotHW {
     MotorStatus motor_status_[2];
 
     Joint joints_[2];
-
+    MotorIndex motor_index;
+    RoboteqCanOpenObjectDictionary query;
+    // RoboteqClientCommandType commands;
     // serial port params
-    int baudrate_;
-    std::string port_;
-    serial::Serial serial_port_;
+    int baudrate_body_, baudrate_driver_;
+    std::string port_body_, port_driver_;
+    serial::Serial serial_port_body_, serial_port_driver_;
 
     // ros controller joints
     std::string body_joint_name_;

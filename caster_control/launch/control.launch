@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="log_type" default="screen" />
-  <arg name="base_version" default="v1" />
+  <arg name="base_version" default="v2" />
   <arg name="has_body" default="false" />
-  <arg name="body_version" default="v1" />
+  <arg name="body_version" default="v2" />
 
   <!-- Load controller configuration -->
   <rosparam command="load" file="$(find caster_control)/config/control_$(arg base_version).yaml"/>

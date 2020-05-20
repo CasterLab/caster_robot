@@ -3,7 +3,7 @@
 <launch>
   <arg name="log_type" default="screen"/>
   <arg name="move_base" default="false"/>
-  <arg name="base_version" default="v1" />
+  <arg name="base_version" default="v2" />
 
   <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping_node" respawn="false" output="$(arg log_type)">
     <rosparam file="$(find caster_navigation)/config/$(arg base_version)/gmapping.yaml" command="load" />

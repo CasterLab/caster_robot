@@ -135,7 +135,6 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/caster_base_node.cpp src/caster_hardware.cpp)
 add_executable(${PROJECT_NAME}_node src/caster_base_node.cpp src/caster_hardware.cpp)
-add_executable(${PROJECT_NAME}_serial_node src/caster_base_serial_node.cpp src/caster_hardware_serial.cpp)
 add_executable(caster_mcu_node src/caster_mcu_node.cpp src/rhdlc.cpp)
 
 ## Rename C++ executable without prefix
@@ -148,7 +147,6 @@ add_executable(caster_mcu_node src/caster_mcu_node.cpp src/rhdlc.cpp)
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME}_serial_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(caster_mcu_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
@@ -157,10 +155,6 @@ add_dependencies(caster_mcu_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 # )
 
 target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES}
-)
-
-target_link_libraries(${PROJECT_NAME}_serial_node
   ${catkin_LIBRARIES}
 )
 
@@ -183,7 +177,7 @@ target_link_libraries(caster_mcu_node
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}_serial_node ${PROJECT_NAME}_node caster_mcu_node
+install(TARGETS ${PROJECT_NAME}_node caster_mcu_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

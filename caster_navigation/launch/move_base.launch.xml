@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="log_type" default="screen"/>
-  <arg name="base_version" default="v1" />
+  <arg name="base_version" default="v2" />
   
   <!-- Arguments -->
   <arg name="cmd_vel_topic" default="yocs_cmd_vel_mux/input/navigation_cmd" />
