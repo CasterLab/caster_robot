@@ -1,6 +1,6 @@
 #include <ros/callback_queue.h>
 
-#include <caster_base/caster_hardware_serial.h>
+#include <caster_base/caster_hardware.h>
 
 int main(int argc, char *argv[]) {
   ros::init(argc, argv, "caster_base_node");

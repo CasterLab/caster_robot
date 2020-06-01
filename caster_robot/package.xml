@@ -8,19 +8,21 @@
 
   <license>MIT</license>
 
-  <url type="website">https://github.com/I-Quotient-Robotics/caster</url>
-  <url type="repository">https://github.com/I-Quotient-Robotics/caster</url>
-  <url type="bugtracker">https://github.com/I-Quotient-Robotics/caster/issues</url>
+  <url type="website">https://github.com/CasterLab/caster</url>
+  <url type="repository">https://github.com/CasterLab/caster</url>
+  <url type="bugtracker">https://github.com/CasterLab/caster/issues</url>
 
   <author email="ye@iquotient-robotics.com">Ye Tian</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>caster_msgs</depend>
-  <depend>caster_base</depend>
-  <depend>caster_control</depend>
-  <depend>caster_navigation</depend>
-  <depend>caster_description</depend>
+  <exec_depend>caster_auto_charge</exec_depend>
+  <exec_depend>caster_base</exec_depend>
+  <exec_depend>caster_control</exec_depend>
+  <exec_depend>caster_navigation</exec_depend>
+
+  <exec_depend>caster_msgs</exec_depend>
+  <exec_depend>caster_description</exec_depend>
 
   <export>
     <metapackage/>

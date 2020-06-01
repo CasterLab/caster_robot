@@ -157,9 +157,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   script/dock_detect.py
-  script/dock_v2_detect.py
   script/dock_server.py
-  script/dock_server_v2.py
   script/icp.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
