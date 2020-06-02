@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>caster_control</name>
-  <version>1.1.0</version>
+  <version>2.1.0</version>
   <description>The caster_control package</description>
 
-  <maintainer email="ye@iquotient-robotics.com">Ye Tian</maintainer>
+  <maintainer email="ye.tian@iquotient-robotics.com">Ye Tian</maintainer>
 
   <license>MIT</license>
 
-  <url type="website">https://github.com/CasterLab/caster</url>
-  <url type="repository">https://github.com/CasterLab/caster</url>
-  <url type="bugtracker">https://github.com/CasterLab/caster/issues</url>
+  <url type="website">https://github.com/CasterLab/caster_robot</url>
+  <url type="repository">https://github.com/CasterLab/caster_robot</url>
+  <url type="bugtracker">https://github.com/CasterLab/caster_robot/issues</url>
 
-  <author email="ye@iquotient-robotics.com">Ye Tian</author>
+  <author email="ye.tian@iquotient-robotics.com">Ye Tian</author>
 
   <build_depend>roslaunch</build_depend>
   <buildtool_depend>catkin</buildtool_depend>
