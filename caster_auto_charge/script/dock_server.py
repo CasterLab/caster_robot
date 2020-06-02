@@ -143,6 +143,8 @@ class DockActionServer(ActionServer):
             self.__cmd_pub.publish(cmd)
             rospy.loginfo('rotate %f : %f', target_yaw, yaw)
 
+        return True
+
     def __head_align(self):
         cmd = Twist()
 
@@ -165,6 +167,8 @@ class DockActionServer(ActionServer):
 
             # rospy.loginfo('algin %f, speed %f', dock_pose[1], cmd.angular.z)
             self.__cmd_pub.publish(cmd)
+
+        return True
 
     def __moveto_dock(self):
         cmd = Twist()
@@ -207,9 +211,7 @@ class DockActionServer(ActionServer):
         # set charge relay on
         self.__set_charge_relay(True)
 
-        self.__docked = True
-        self.__current_goal_handle.set_succeeded(None, 'Docked')
-        rospy.loginfo('Docked')
+        return True
 
     def __moveto_dock_ready(self):
         # step 1
@@ -243,11 +245,26 @@ class DockActionServer(ActionServer):
         self.__movebase_client.wait_for_result()
         rospy.loginfo('arrived dock_ready_pose_2')
 
-        self.__head_align()
+        return True
 
-        self.__rotate(math.pi)
+    def __dock(self):
+        if self.__moveto_dock_ready():
+            if self.__head_align():
+                if self.__rotate(math.pi):
+                    if self.__moveto_dock():
+                        self.__docked = True
+                        return True
+                    else:
+                        rospy.logwarn("unable to move to dock")
+                else:
+                    rospy.logwarn("unable to rotate 180")
+            else:
+                rospy.logwarn("unable to align head")
+        else:
+            rospy.logwarn("unable to move to dock ready")
 
-        self.__moveto_dock()
+        self.__docked = False
+        return False
 
     def __undock(self):
         cmd = Twist()
@@ -315,7 +332,14 @@ class DockActionServer(ActionServer):
                 else: 
                     rospy.loginfo('Docking')
                     self.__current_goal_handle.set_accepted('Docking')
-                    self.__moveto_dock_ready()
+                    self.__dock()
+
+                    if self.__docked:
+                        self.__current_goal_handle.set_succeeded(None, 'Docked')
+                        rospy.loginfo('Docked')
+                    else:
+                        self.__current_goal_handle.set_aborted(None, 'Dock failed')
+                        rospy.loginfo('Dock failed')
             elif goal.dock == False:
                 if self.__docked == False:
                     rospy.logwarn('cancel_all_goals')
@@ -335,7 +359,7 @@ class DockActionServer(ActionServer):
             self.__no_goal = True
 
         rospy.loginfo('auto dock thread stop')
-            
+
 
 def main():
     rospy.init_node('dock_server')
