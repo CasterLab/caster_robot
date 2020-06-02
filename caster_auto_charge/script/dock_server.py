@@ -67,6 +67,9 @@ class DockActionServer(ActionServer):
 
         rospy.loginfo('Creating ActionServer [%s]\n', name)
 
+    def __del__(self):
+        self.__movebase_client.cancel_all_goals()
+
     def __dock_pose_callback(self, data):
         ps = PoseStamped()
         # ps.header.stamp = rospy.Time.now()
@@ -317,11 +320,6 @@ class DockActionServer(ActionServer):
                 if self.__docked == False:
                     rospy.logwarn('cancel_all_goals')
                     self.__movebase_client.cancel_all_goals()
-                    cmd = Twist()
-                    cmd.linear.x = self.__dock_speed
-                    cmd.linear.x = 0
-                    self.__cmd_pub.publish(cmd)
-                    rospy.Rate(1).sleep()
                     rospy.logwarn('rejected, robot is not on charging')
                     self.__current_goal_handle.set_rejected(None, 'robot is not on charging')
                 else: 
@@ -330,7 +328,6 @@ class DockActionServer(ActionServer):
                     self.__undock()
             else:
                 rospy.logwarn('unknown dock data type, should be true or false')
-
 
             # self.__current_goal_handle.set_succeeded(None, 'Docked')
             rospy.loginfo('new goal finish')
