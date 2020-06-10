@@ -137,7 +137,7 @@ def callback(data):
     best_distance = icp_distance_threshold
     best_T = None
     for p_i in xrange(len(potential_clouds)):
-        ideal_dock_cloud = GenerateIdealDock(len(potential_clouds[p_i]))
+        ideal_dock_cloud = GenerateIdealDock(1000)
 
         ideal_dock_np = Point32ToNumpy(ideal_dock_cloud)
         potential_cloud_np = Point32ToNumpy(potential_clouds[p_i])

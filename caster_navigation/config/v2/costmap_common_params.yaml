@@ -11,4 +11,4 @@ obstacle_layer:
     laser: {topic: scan, sensor_frame: laser_link, data_type: LaserScan, clearing: true, marking: true, inf_is_valid: true}
 
 inflation_layer:
-    inflation_radius: 2.0
+    inflation_radius: 1

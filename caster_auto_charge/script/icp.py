@@ -56,7 +56,7 @@ def nearest_neighbor(src, dst):
         indices: dst indices of the nearest neighbor
     '''
 
-    assert src.shape == dst.shape
+    assert src.shape[1] == dst.shape[1]
 
     neigh = NearestNeighbors(n_neighbors=1)
     neigh.fit(dst)
@@ -79,7 +79,7 @@ def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
         i: number of iterations to converge
     '''
 
-    assert A.shape == B.shape
+    assert A.shape[1] == B.shape[1]
 
     # get number of dimensions
     m = A.shape[1]

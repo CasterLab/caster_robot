@@ -4,7 +4,7 @@
   <arg name="base_version" default="v2" />
   
   <!-- Arguments -->
-  <arg name="map_file" default="$(find caster_navigation)/maps/t.yaml"/>
+  <arg name="map_file" default="$(find caster_navigation)/maps/wl_1f.yaml"/>
   <arg name="rviz" default="false"/>
 
   <!-- Map server -->

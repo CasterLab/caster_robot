@@ -6,7 +6,7 @@
   <arg name="body_version" default="v1" />
 
   <!-- Caster driver -->
-  <node pkg="caster_base" type="caster_base_serial_node" name="caster_base_serial_node" output="$(arg log_type)">
+  <node pkg="caster_base" type="caster_base_node" name="caster_base_node" output="$(arg log_type)">
     <param name="base_baudrate" type="int" value="115200" />
     <param name="base_port" type="string" value="/dev/caster_base" />
     <param name="body_baudrate" type="int" value="115200" if="$(arg has_body)"/>
@@ -86,7 +86,7 @@
   <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)">
     <param name="output_frame" value="odom"/>
     <param name="base_footprint_frame" value="base_footprint"/>
-    <param name="freq" value="25"/>
+    <param name="freq" value="50"/>
     <param name="sensor_timeout" value="1.0"/>
     <param name="odom_used" value="true"/>
     <param name="imu_used" value="true"/>

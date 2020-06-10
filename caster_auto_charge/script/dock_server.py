@@ -15,7 +15,7 @@ from actionlib.action_server import ActionServer
 from geometry_msgs.msg import Pose, Twist, PoseStamped
 from move_base_msgs.msg import MoveBaseGoal, MoveBaseFeedback, MoveBaseAction
 
-from caster_app.msg import DockAction, DockFeedback, DockResult
+from caster_msgs.msg import DockAction, DockFeedback, DockResult
 
 class DockActionServer(ActionServer):
     def __init__(self, name):
@@ -108,6 +108,24 @@ class DockActionServer(ActionServer):
         self.__movebase_client.cancel_goal()
         rospy.logwarn('cancel callback')
 
+    def __get_delta(self, pose, target):
+        if pose < 0:
+            pose = math.pi * 2 + pose
+
+        if target < 0:
+            target = math.pi * 2 + target
+
+        delta_a = target - pose
+        delta_b = math.pi * 2 - math.fabs(delta_a)
+
+        if delta_a > 0:
+            delta_b = delta_b * -1.0
+
+        if math.fabs(delta_a) < math.fabs(delta_b):
+            return delta_a
+        else:
+            return delta_b
+
     def __rotate(self, delta):
         try :
             pose, quaternion = self.__tf_listener.lookupTransform('odom', self.__base_frame, rospy.Time(0))
@@ -126,7 +144,7 @@ class DockActionServer(ActionServer):
 
         cmd = Twist()
         time = rospy.Time.now() + rospy.Duration(15)
-        while rospy.Time.now()<time and not rospy.is_shutdown() and target_yaw-yaw>0.01:
+        while rospy.Time.now()<time and not rospy.is_shutdown() and math.fabs(self.__get_delta(yaw, target_yaw)) > 0.03:
             try :
                 pose, quaternion = self.__tf_listener.lookupTransform('odom', self.__base_frame, rospy.Time(0))
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -135,20 +153,24 @@ class DockActionServer(ActionServer):
 
             (roll, pitch, yaw) = euler_from_quaternion(quaternion)
 
-            cmd.angular.z =  abs(target_yaw-yaw) * 0.5
+            a =  self.__get_delta(yaw, target_yaw) * 0.4
 
-            if cmd.angular.z < 0.05:
-                cmd.angular.z = 0.05
+            if a > 0 and a < 0.08:
+                cmd.angular.z = 0.08
+            elif a < 0 and a > -0.08:
+                cmd.angular.z = -0.08
+            else:
+                cmd.angular.z = a
 
             self.__cmd_pub.publish(cmd)
-            rospy.loginfo('rotate %f : %f', target_yaw, yaw)
+            rospy.loginfo('rotate %f : %f, delta %f, speed %f, %f', target_yaw, yaw, self.__get_delta(yaw, target_yaw), a, cmd.angular.z)
 
         return True
 
     def __head_align(self):
         cmd = Twist()
 
-        time = rospy.Time.now() + rospy.Duration(5)
+        time = rospy.Time.now() + rospy.Duration(10)
         while rospy.Time.now() < time:
             try :
                 dock_pose, dock_quaternion = self.__tf_listener.lookupTransform(self.__base_frame, 'dock', rospy.Time(0))
@@ -156,17 +178,21 @@ class DockActionServer(ActionServer):
                 rospy.logwarn(e)
                 rospy.logwarn('tf error')
 
-            if dock_pose[1] < 0.01:
-                cmd.angular.z = -0.05
-            elif dock_pose[1] > 0.01:
-                cmd.angular.z = 0.05
+            # when dock's x is close to zero, it means dock is just in the front of robot(base_footprint)
+            if dock_pose[1] < -0.002:
+                cmd.angular.z = -0.08
+            elif dock_pose[1] > 0.002:
+                cmd.angular.z = 0.08
             else:
                 cmd.angular.z = 0.00
                 self.__cmd_pub.publish(cmd)
                 break
 
-            # rospy.loginfo('algin %f, speed %f', dock_pose[1], cmd.angular.z)
+            rospy.loginfo('algin %f, speed %f', dock_pose[1], cmd.angular.z)
             self.__cmd_pub.publish(cmd)
+
+        self.__cmd_pub.publish(cmd)
+        rospy.Rate(0.5).sleep()
 
         return True
 
@@ -183,7 +209,7 @@ class DockActionServer(ActionServer):
             rospy.logwarn('tf error')
 
         delta_distance = 0
-        while delta_distance < self.__dock_distance-0.25 and not rospy.is_shutdown():
+        while delta_distance < self.__dock_distance-0.235 and not rospy.is_shutdown():
             self.__cmd_pub.publish(cmd)
 
             try :
@@ -218,6 +244,7 @@ class DockActionServer(ActionServer):
         mb_goal = MoveBaseGoal()
         mb_goal.target_pose.header.stamp = rospy.Time.now()
         mb_goal.target_pose.header.frame_id = self.__map_frame
+        mb_goal.target_pose.header.seq = 1
         mb_goal.target_pose.pose = self.__dock_ready_pose
 
         self.__movebase_client.send_goal(mb_goal)
@@ -225,24 +252,29 @@ class DockActionServer(ActionServer):
         self.__movebase_client.wait_for_result()
         rospy.loginfo('arrived dock_ready_pose')
 
-        rospy.Rate(1).sleep()
+        rospy.Rate(2).sleep()
 
+        mb_goal = MoveBaseGoal()
+        mb_goal.target_pose.header.seq = 2
         mb_goal.target_pose.header.stamp = rospy.Time.now()
         mb_goal.target_pose.header.frame_id = self.__map_frame
 
-        if self.__dock_ready_pose_2.pose.position.z == -0.3:
+        if self.__dock_ready_pose_2.pose.position.z == -1.0:
             rospy.logwarn('dock_ready_pose_2 failed')
-            return
+            return False
         else:
+            rospy.loginfo('get dock ready pose 2 ()()')
             t = self.__dock_ready_pose_2.pose
 
-        t.position.z == 0.0
+        # t.position.z == 0.0
+        # t.position.x = -self.__dock_distance
         mb_goal.target_pose.pose = t
 
         rospy.loginfo('move to dock_ready_pose_2')
+        self.__movebase_client.cancel_all_goals()
         self.__movebase_client.send_goal(mb_goal)
 
-        self.__movebase_client.wait_for_result()
+        rospy.loginfo(self.__movebase_client.wait_for_result())
         rospy.loginfo('arrived dock_ready_pose_2')
 
         return True
@@ -279,7 +311,7 @@ class DockActionServer(ActionServer):
             rospy.logwarn('tf error')
 
         delta_distance = 0
-        while delta_distance < self.__dock_distance and not rospy.is_shutdown():
+        while delta_distance < self.__dock_distance-0.275 and not rospy.is_shutdown():
             self.__cmd_pub.publish(cmd)
 
             try :
