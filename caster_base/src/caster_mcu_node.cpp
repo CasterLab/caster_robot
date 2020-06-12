@@ -99,10 +99,10 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   if(hardware_state.dc_05v.voltage_mv < 4500 || hardware_state.dc_05v.voltage_mv > 5500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Voltage too low / high");
   }
-  if(hardware_state.dc_05v.current_ma < 0 || hardware_state.dc_05v.current_ma > 2500) {
+  if(hardware_state.dc_05v.current_ma < -100 || hardware_state.dc_05v.current_ma > 2500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Current too low / high");
   }
-  if(hardware_state.dc_05v.power_mw < 0 || hardware_state.dc_05v.power_mw > 15000) {
+  if(hardware_state.dc_05v.power_mw < -100 || hardware_state.dc_05v.power_mw > 15000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Power too low / high");
   }
 
@@ -110,10 +110,10 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   if(hardware_state.dc_12v.voltage_mv < 11500 || hardware_state.dc_12v.voltage_mv > 12500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Voltage too low / high");
   }
-  if(hardware_state.dc_12v.current_ma < 0 || hardware_state.dc_12v.current_ma > 5500) {
+  if(hardware_state.dc_12v.current_ma < -100 || hardware_state.dc_12v.current_ma > 5500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Current too low / high");
   }
-  if(hardware_state.dc_12v.power_mw < 0 || hardware_state.dc_12v.power_mw > 65000) {
+  if(hardware_state.dc_12v.power_mw < -100 || hardware_state.dc_12v.power_mw > 65000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Power too low / high");
   }
 
@@ -121,10 +121,10 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   if(hardware_state.dc_19v.voltage_mv < 18500 || hardware_state.dc_19v.voltage_mv > 19500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Voltage too low / high");
   }
-  if(hardware_state.dc_19v.current_ma < 0 || hardware_state.dc_19v.current_ma > 5000) {
+  if(hardware_state.dc_19v.current_ma < -100 || hardware_state.dc_19v.current_ma > 5000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Current too low / high");
   }
-  if(hardware_state.dc_19v.power_mw < 0 || hardware_state.dc_19v.power_mw > 100000) {
+  if(hardware_state.dc_19v.power_mw < -100 || hardware_state.dc_19v.power_mw > 100000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Power too low / high");
   }
 
@@ -132,16 +132,16 @@ void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
   if(hardware_state.dc_24v.voltage_mv < 23500 || hardware_state.dc_24v.voltage_mv > 24500) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Voltage too low / high");
   }
-  if(hardware_state.dc_24v.current_ma < 0 || hardware_state.dc_24v.current_ma > 10000) {
+  if(hardware_state.dc_24v.current_ma < -100 || hardware_state.dc_24v.current_ma > 10000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Current too low / high");
   }
-  if(hardware_state.dc_24v.power_mw < 0 || hardware_state.dc_24v.power_mw > 240000) {
+  if(hardware_state.dc_24v.power_mw < -100 || hardware_state.dc_24v.power_mw > 240000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Power too low / high");
   }
 
   // DC-ALL
   int32_t power_mw = hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw;
-  if(power_mw < 0 || power_mw > 240000) {
+  if(power_mw < -100 || power_mw > 240000) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-ALL Power too low / high");
   }
 }
