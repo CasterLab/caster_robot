@@ -1,9 +1,9 @@
 # please visit http://wiki.ros.org/amcl
 
-min_particles: 100                      # (int, default: 100)
+min_particles: 500                      # (int, default: 100)
 max_particles: 5000                     # (int, default: 5000)
 kld_err: 0.005                          # (double, default: 0.01)
-kld_z: 0.23                             # (double, default: 0.99)
+kld_z: 0.99                             # (double, default: 0.99)
 update_min_d: 0.1                       # (double, default: 0.2 meters)
 update_min_a: 0.1                       # (double, default: π/6.0 radians)
 resample_interval: 2                    # (int, default: 2)
@@ -24,7 +24,7 @@ first_map_only: false                   # (bool, default: false)
 # laser
 laser_min_range: -1.0                   # (double default: -1.0)
 laser_max_range: 12.0                   # (double, default: -1.0)
-laser_max_beams: 30                     # (int, default: 30)
+laser_max_beams: 90                     # (int, default: 30)
 laser_z_hit: 0.95                       # (double, default: 0.95)
 laser_z_short: 0.1                      # (double, default: 0.1)
 laser_z_max: 0.05                       # (double, default: 0.05)

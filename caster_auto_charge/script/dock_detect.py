@@ -20,8 +20,8 @@ min_detect_angle = -math.pi/3.6         # now: -50 degree
 max_detect_angle = math.pi/3.6          # now: 50 degree
 
 find_dock = False
-cluster_threshold = 0.04            # cluster distance threshold
-icp_distance_threshold = 0.05
+cluster_threshold = 0.02            # cluster distance threshold
+icp_distance_threshold = 0.01
 potential_clouds_min_points = 80
 
 T = np.identity(4)
@@ -195,6 +195,8 @@ def main():
     dock_tf_broadcaster = tf.TransformBroadcaster()
 
     dock_pose_pub = rospy.Publisher('dock_pose', PoseStamped, queue_size=10)
+    # approach_path_pub = rospy.Publisher('dock_approach_path', Path, queue_size=10)
+
     dock_pointcloud_pub = rospy.Publisher('dock_pointcloud', PointCloud, queue_size=10)
     cluster_pointcloud_pub = rospy.Publisher('cluster_pointcloud', PointCloud, queue_size=10)
 

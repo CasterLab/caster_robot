@@ -8,7 +8,7 @@
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(find caster_description)/urdf/caster_v2_xacro.xacro" />
 
   <!-- Robot base -->
-  <include file="$(find caster_base)/launch/include/base_v2.launch.xml">
+  <include file="$(find caster_base)/launch/include/base.launch.xml">
     <arg name="log_type" value="$(arg log_type)"/>
     <arg name="base_version" value="v2" />
     <arg name="has_body" value="false" />

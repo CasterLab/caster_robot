@@ -5,6 +5,8 @@ import threading
 
 import rospy
 
+from path_tracker import PathTracker
+
 import tf
 from tf.transformations import euler_from_quaternion
 
@@ -12,16 +14,21 @@ from actionlib import SimpleActionClient
 from actionlib.server_goal_handle import ServerGoalHandle
 from actionlib.action_server import ActionServer
 
-from geometry_msgs.msg import Pose, Twist, PoseStamped
+from nav_msgs.msg import Path
+from geometry_msgs.msg import Pose, Twist, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseGoal, MoveBaseFeedback, MoveBaseAction
 
 from caster_msgs.msg import DockAction, DockFeedback, DockResult
+
+# mutex = Lock()
 
 class DockActionServer(ActionServer):
     def __init__(self, name):
         ActionServer.__init__(self, name, DockAction, self.__goal_callback, self.__cancel_callback, False)
 
         self.__docked = False
+
+        self.__mutex = threading.Lock()
         
         self.__dock_speed = rospy.get_param('~dock/dock_speed', 0.05)
         self.__dock_distance = rospy.get_param('~dock/dock_distance', 1.0)
@@ -50,7 +57,11 @@ class DockActionServer(ActionServer):
         self.__movebase_client.wait_for_server()
         rospy.loginfo('movebase server connected')
 
-        self.__cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.__approach_path = Path()
+        self.__path_tracker = PathTracker()
+        self.__approach_path_pub = rospy.Publisher('dock_approach_path', Path, queue_size=10)
+
+        self.__cmd_pub = rospy.Publisher('yocs_cmd_vel_mux/input/navigation_cmd', Twist, queue_size=10)
 
         rospy.Subscriber('dock_pose', PoseStamped, self.__dock_pose_callback)
 
@@ -67,22 +78,53 @@ class DockActionServer(ActionServer):
 
         rospy.loginfo('Creating ActionServer [%s]\n', name)
 
+    def AquireMutex(self):
+        self.__mutex.acquire(1)
+
+    def ReleaseMutex(self):
+        self.__mutex.release()
+
     def __del__(self):
         self.__movebase_client.cancel_all_goals()
 
     def __dock_pose_callback(self, data):
-        ps = PoseStamped()
+        # ps = PoseStamped()
         # ps.header.stamp = rospy.Time.now()
-        ps.header.frame_id = 'dock'
-        ps.pose.position.x = -self.__dock_distance
+        # ps.header.frame_id = 'dock'
+        # ps.pose.position.x = -self.__dock_distance
+
+        self.__mutex.acquire(1)
+
+        self.__approach_path = Path()
+        self.__approach_path.header.stamp = rospy.Time.now()
+        self.__approach_path.header.frame_id = 'odom'
 
         try:
-            self.__dock_ready_pose_2 = self.__tf_listener.transformPose('map', ps)
+            for i in range(6):
+                p = PoseStamped()
+                p.header.frame_id = 'dock'
+                p.pose.position.x = -self.__dock_distance - i*0.1
+                # p.pose.orientation = Quaternion(0.0, 0.0, 1.0, 0.0)
+
+                p1 = self.__tf_listener.transformPose(self.__odom_frame, p)
+                self.__approach_path.poses.insert(0, p1)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-            self.__dock_ready_pose_2.pose.position.z = -1.0
+            # self.__dock_ready_pose_2.pose.position.z = -1.0
             rospy.logwarn('tf error, %s' % e)
 
-        self.__dock_ready_pose_2.pose.position.z = 0.0
+        self.__mutex.release()
+
+        self.__approach_path_pub.publish(self.__approach_path)
+
+        # rospy.loginfo('path length %lf', len(self.__approach_path.poses))
+
+        # try:
+        #     self.__dock_ready_pose_2 = self.__tf_listener.transformPose('map', ps)
+        # except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+        #     self.__dock_ready_pose_2.pose.position.z = -1.0
+        #     rospy.logwarn('tf error, %s' % e)
+
+        # self.__dock_ready_pose_2.pose.position.z = 0.0
 
         # rospy.loginfo('get dock pose')
 
@@ -153,17 +195,19 @@ class DockActionServer(ActionServer):
 
             (roll, pitch, yaw) = euler_from_quaternion(quaternion)
 
-            a =  self.__get_delta(yaw, target_yaw) * 0.4
+            a =  self.__get_delta(yaw, target_yaw) * 0.3
 
-            if a > 0 and a < 0.08:
-                cmd.angular.z = 0.08
-            elif a < 0 and a > -0.08:
-                cmd.angular.z = -0.08
+            if a > 0 and a < 0.3:
+                cmd.angular.z = 0.3
+            elif a < 0 and a > -0.3:
+                cmd.angular.z = -0.3
             else:
                 cmd.angular.z = a
 
             self.__cmd_pub.publish(cmd)
-            rospy.loginfo('rotate %f : %f, delta %f, speed %f, %f', target_yaw, yaw, self.__get_delta(yaw, target_yaw), a, cmd.angular.z)
+            # rospy.loginfo('rotate %f : %f, delta %f, speed %f, %f', target_yaw, yaw, self.__get_delta(yaw, target_yaw), a, cmd.angular.z)
+
+        self.__cmd_pub.publish(Twist())
 
         return True
 
@@ -180,18 +224,16 @@ class DockActionServer(ActionServer):
 
             # when dock's x is close to zero, it means dock is just in the front of robot(base_footprint)
             if dock_pose[1] < -0.002:
-                cmd.angular.z = -0.08
+                cmd.angular.z = -0.1
             elif dock_pose[1] > 0.002:
-                cmd.angular.z = 0.08
+                cmd.angular.z = 0.1
             else:
-                cmd.angular.z = 0.00
-                self.__cmd_pub.publish(cmd)
                 break
 
             rospy.loginfo('algin %f, speed %f', dock_pose[1], cmd.angular.z)
             self.__cmd_pub.publish(cmd)
 
-        self.__cmd_pub.publish(cmd)
+        self.__cmd_pub.publish(Twist())
         rospy.Rate(0.5).sleep()
 
         return True
@@ -219,7 +261,7 @@ class DockActionServer(ActionServer):
                 ca_feedback.dock_feedback = 'Moving to Dock, %fm left' % (self.__dock_distance-delta_distance)
                 self.__current_goal_handle.publish_feedback(ca_feedback)
 
-                rospy.loginfo('Moving to Dock, %fm left' % (self.__dock_distance-delta_distance))
+                # rospy.loginfo('Moving to Dock, %fm left' % (self.__dock_distance-delta_distance))
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
                 rospy.logwarn(e)
                 rospy.logwarn('tf error aa')
@@ -252,30 +294,30 @@ class DockActionServer(ActionServer):
         self.__movebase_client.wait_for_result()
         rospy.loginfo('arrived dock_ready_pose')
 
-        rospy.Rate(2).sleep()
+        # rospy.Rate(2).sleep()
 
-        mb_goal = MoveBaseGoal()
-        mb_goal.target_pose.header.seq = 2
-        mb_goal.target_pose.header.stamp = rospy.Time.now()
-        mb_goal.target_pose.header.frame_id = self.__map_frame
+        # mb_goal = MoveBaseGoal()
+        # mb_goal.target_pose.header.seq = 2
+        # mb_goal.target_pose.header.stamp = rospy.Time.now()
+        # mb_goal.target_pose.header.frame_id = self.__map_frame
 
-        if self.__dock_ready_pose_2.pose.position.z == -1.0:
-            rospy.logwarn('dock_ready_pose_2 failed')
-            return False
-        else:
-            rospy.loginfo('get dock ready pose 2 ()()')
-            t = self.__dock_ready_pose_2.pose
+        # if self.__dock_ready_pose_2.pose.position.z == -1.0:
+        #     rospy.logwarn('dock_ready_pose_2 failed')
+        #     return False
+        # else:
+        #     rospy.loginfo('get dock ready pose 2 ()()')
+        #     t = self.__dock_ready_pose_2.pose
 
-        # t.position.z == 0.0
-        # t.position.x = -self.__dock_distance
-        mb_goal.target_pose.pose = t
+        # # t.position.z == 0.0
+        # # t.position.x = -self.__dock_distance
+        # mb_goal.target_pose.pose = t
 
-        rospy.loginfo('move to dock_ready_pose_2')
-        self.__movebase_client.cancel_all_goals()
-        self.__movebase_client.send_goal(mb_goal)
+        # rospy.loginfo('move to dock_ready_pose_2')
+        # self.__movebase_client.cancel_all_goals()
+        # self.__movebase_client.send_goal(mb_goal)
 
-        rospy.loginfo(self.__movebase_client.wait_for_result())
-        rospy.loginfo('arrived dock_ready_pose_2')
+        # rospy.loginfo(self.__movebase_client.wait_for_result())
+        # rospy.loginfo('arrived dock_ready_pose_2')
 
         return True
 
@@ -292,6 +334,40 @@ class DockActionServer(ActionServer):
                     rospy.logwarn("unable to rotate 180")
             else:
                 rospy.logwarn("unable to align head")
+        else:
+            rospy.logwarn("unable to move to dock ready")
+
+        self.__docked = False
+        return False
+
+    def __dock_2(self):
+        if self.__moveto_dock_ready():
+            c_index = 0;
+            while not rospy.is_shutdown():
+                base_pose = PoseStamped()
+                base_pose.header.frame_id = 'base_link'
+                try :
+                    self.__mutex.acquire(1)
+                    robot_pose = self.__tf_listener.transformPose(self.__odom_frame, base_pose)
+                    # rospy.loginfo(len(self.__approach_path.poses))
+                    approach_finish, vel, c_index = self.__path_tracker.UpdateCmd(robot_pose, self.__approach_path, c_index)
+                    self.__mutex.release()
+                    self.__cmd_pub.publish(vel)
+                    if approach_finish == True:
+                        rospy.loginfo('target reached')
+                        break
+                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                    rospy.logwarn(e)
+                    rospy.logwarn('tf error')
+
+            self.__head_align()
+
+            self.__rotate(3.1)
+
+            self.__moveto_dock()
+
+            self.__docked = True
+            return True
         else:
             rospy.logwarn("unable to move to dock ready")
 
@@ -364,7 +440,7 @@ class DockActionServer(ActionServer):
                 else: 
                     rospy.loginfo('Docking')
                     self.__current_goal_handle.set_accepted('Docking')
-                    self.__dock()
+                    self.__dock_2()
 
                     if self.__docked:
                         self.__current_goal_handle.set_succeeded(None, 'Docked')
