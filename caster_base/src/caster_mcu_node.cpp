@@ -1,196 +1,144 @@
-#include <random>
-
+#include <iostream>
 #include <ros/ros.h>
-#include <serial/serial.h>
-#include <diagnostic_updater/diagnostic_updater.h>
+#include <std_msgs/Bool.h>
+#include <boost/format.hpp>
+#include "ModBusRTUMaster.h"
+#include "caster_msgs/CasterStatus.h"
 
-#include <rhdlc.h>
+class CasterMCUNode
+{
+public:
+  CasterMCUNode();
+  ~CasterMCUNode();
+  void loop();
+  void callBack(const std_msgs::Bool &msg);
 
-enum StateType {
-  kNormal = 0,
-  kEStop,
-  kHalt,
+private:
+  ros::NodeHandle nh;
+  ros::Publisher statusPub;
+  ros::Subscriber estopSub;
+
+  int baudRate;
+  std::string portName;
+
+  ModBusRTUMaster *master;
 };
 
-struct DCState {
-  int32_t power_mw;
-  int16_t current_ma;
-  int16_t voltage_mv;
+CasterMCUNode::CasterMCUNode()
+    : nh("~")
+{
+  nh.param<int>("mcu_baudrate", baudRate, 115200);
+  nh.param<std::string>("mcu_port", portName, "/dev/caster_mcu");
 
-  DCState():
-    power_mw(0), current_ma(0), voltage_mv(0) {
-  }
-};
+  master = new ModBusRTUMaster(portName, baudRate);
 
-struct HardwareState {
-  bool halt;
-  bool e_stop;
-  bool charger_detect;
-  DCState dc_05v;
-  DCState dc_12v;
-  DCState dc_19v;
-  DCState dc_24v;
-
-  HardwareState(): halt(0), e_stop(0), charger_detect(0) {
-  }
-};
-
-HardwareState hardware_state;
-
-void SendBuffer(const uint8_t *data_buffer, uint16_t buffer_length) {
-  ROS_INFO("buffer sent");
+  estopSub = nh.subscribe("EStop", 1, &CasterMCUNode::callBack, this);
+  statusPub = nh.advertise<caster_msgs::CasterStatus>("caster_status", 10);
 }
 
-void FrameHandler(const uint8_t *frame_buffer, uint16_t frame_length) {
-
-  hardware_state.halt = static_cast<bool>(frame_buffer[0]);
-  hardware_state.e_stop = static_cast<bool>(frame_buffer[1]);
-  hardware_state.charger_detect = static_cast<bool>(frame_buffer[2]);
-
-  memcpy(&hardware_state.dc_05v.power_mw, frame_buffer+3, 4);
-  memcpy(&hardware_state.dc_05v.current_ma, frame_buffer+7, 2);
-  memcpy(&hardware_state.dc_05v.voltage_mv, frame_buffer+9, 2);
-
-  memcpy(&hardware_state.dc_12v.power_mw, frame_buffer+11, 4);
-  memcpy(&hardware_state.dc_12v.current_ma, frame_buffer+15, 2);
-  memcpy(&hardware_state.dc_12v.voltage_mv, frame_buffer+17, 2);
-
-  memcpy(&hardware_state.dc_19v.power_mw, frame_buffer+19, 4);
-  memcpy(&hardware_state.dc_19v.current_ma, frame_buffer+23, 2);
-  memcpy(&hardware_state.dc_19v.voltage_mv, frame_buffer+25, 2);
-
-  memcpy(&hardware_state.dc_24v.power_mw, frame_buffer+27, 4);
-  memcpy(&hardware_state.dc_24v.current_ma, frame_buffer+31, 2);
-  memcpy(&hardware_state.dc_24v.voltage_mv, frame_buffer+33, 2);
-
-  // ROS_INFO("get data");
+CasterMCUNode::~CasterMCUNode()
+{
+  free(master);
+  master = nullptr;
 }
 
-void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
-  status.add("Charger Detect", hardware_state.charger_detect);
+void CasterMCUNode::loop()
+{
+  uint16_t data[256] = {
+      0,
+  };
 
-  status.addf("DC-05V Current (A)", "%.3f", hardware_state.dc_05v.current_ma / 1000.0);
-  status.addf("DC-05V Voltage (V)", "%.2f", hardware_state.dc_05v.voltage_mv / 1000.0);
-  status.addf("DC-05V Power (W)", "%.4f", hardware_state.dc_05v.power_mw / 1000.0);
+  uint8_t ret = master->getMultipleRegisters(0x01, 0x0000, 0x0028, data);
 
-  status.addf("DC-12V Current (A)", "%.3f", hardware_state.dc_12v.current_ma / 1000.0);
-  status.addf("DC-12V Voltage (V)", "%.2f", hardware_state.dc_12v.voltage_mv / 1000.0);
-  status.addf("DC-12V Power (W)", "%.4f", hardware_state.dc_12v.power_mw / 1000.0);
-
-  status.addf("DC-19V Current (A)", "%.3f", hardware_state.dc_19v.current_ma / 1000.0);
-  status.addf("DC-19V Voltage (V)", "%.2f", hardware_state.dc_19v.voltage_mv / 1000.0);
-  status.addf("DC-19V Power (W)", "%.4f", hardware_state.dc_19v.power_mw / 1000.0);
-
-  status.addf("DC-24V Current (A)", "%.3f", hardware_state.dc_24v.current_ma / 1000.0);
-  status.addf("DC-24V Voltage (V)", "%.2f", hardware_state.dc_24v.voltage_mv / 1000.0);
-  status.addf("DC-24V Power (W)", "%.4f", hardware_state.dc_24v.power_mw / 1000.0);
-
-  status.addf("DC-ALL Power (W)", "%.4f", (hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw) / 1000.0);
-
-  status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
-  if(hardware_state.halt == true) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "Halt triggered");
-  }
-  if(hardware_state.e_stop == true) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "E-Stop active");
+  if (!ret)
+  {
+    ROS_WARN("Read Multiple Registers faild!!");
+    return;
   }
 
-  // DC 5V
-  if(hardware_state.dc_05v.voltage_mv < 4500 || hardware_state.dc_05v.voltage_mv > 5500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Voltage too low / high");
-  }
-  if(hardware_state.dc_05v.current_ma < -100 || hardware_state.dc_05v.current_ma > 2500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Current too low / high");
-  }
-  if(hardware_state.dc_05v.power_mw < -100 || hardware_state.dc_05v.power_mw > 15000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-5V Power too low / high");
+  caster_msgs::CasterStatus msg;
+  msg.header.stamp = ros::Time::now();
+  msg.header.frame_id = "base_link";
+
+  msg.hardVersion = str(boost::format("V%1%.%2%") % int((data[0] & 0xff00) >> 8) % int(data[0] & 0x00ff));
+  msg.softVersion = str(boost::format("V%1%.%2%") % int((data[1] & 0xff00) >> 8) % int(data[1] & 0x00ff));
+  msg.serialNumber = str(boost::format("SN%1%%2%.%3%") % int((data[2] & 0xf000) >> 12) % int((data[2] & 0x0f00) >> 8) % int(data[2] & 0x00ff));
+
+  msg.EStopStatus = data[4] & 0x0002;
+  msg.ChargeStatus = data[4] & 0x0001;
+  msg.LowPowerStatus = data[4] & 0x0004;
+
+  msg.PDBError = (data[5] && data[6]) ? true : false;
+  msg.pdb.voltage12V = data[7] / 1000.0;  //#12V voltage V
+  msg.pdb.current12V = data[8] / 1000.0;  //#12V current A
+  msg.pdb.voltage19V = data[9] / 1000.0;  //#19V voltage V
+  msg.pdb.current19V = data[10] / 1000.0; //#19V current A
+  msg.pdb.voltage24V = data[11] / 1000.0; //#24V voltage V
+  msg.pdb.current24V = data[12] / 1000.0; //#24V current A
+
+  msg.BMSError = (data[13]) ? true : false;
+  msg.bms.voltage = data[14] / 100.0;                                                                            //#总电压V
+  msg.bms.current = int16_t(data[15]) / 100.0;                                                                   //#电流A
+  msg.bms.remCap = data[16] / 100.0;                                                                             //#剩余容量Ah
+  msg.bms.nomCap = data[17] / 100.0;                                                                             //#标称容量Ah
+  msg.bms.RSOC = data[18];                                                                                       //#剩余容量%
+  msg.bms.capCount = data[19];                                                                                   //#循环次数
+  msg.bms.balStatus = uint32_t((data[20] << 16) | data[21]);                                                     //#平衡状态
+  msg.bms.proStatus = data[22];                                                                                  //#保护状态
+  msg.bms.cellCount = data[23];                                                                                  //#串数
+  msg.bms.NTCCount = data[24];                                                                                   //#NTC个数
+  msg.bms.FETStatus = data[25];                                                                                  //#FET控制状态
+  msg.bms.softVersion = str(boost::format("V%1%.%2%") % int((data[26] & 0xff00) >> 8) % int(data[26] & 0x00ff)); //#软件版本
+
+  for (size_t i = 0; i < msg.bms.NTCCount; i++)
+  {
+    float ntc = (data[27 + i] - 2731) / 10.0;
+    msg.bms.NTCData.push_back(ntc);
   }
 
-  // DC-12V
-  if(hardware_state.dc_12v.voltage_mv < 11500 || hardware_state.dc_12v.voltage_mv > 12500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Voltage too low / high");
-  }
-  if(hardware_state.dc_12v.current_ma < -100 || hardware_state.dc_12v.current_ma > 5500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Current too low / high");
-  }
-  if(hardware_state.dc_12v.power_mw < -100 || hardware_state.dc_12v.power_mw > 65000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Power too low / high");
+  for (size_t i = 0; i < msg.bms.cellCount; i++)
+  {
+    float vol = data[29 + i] / 1000.0;
+    msg.bms.cellVoltage.push_back(vol);
   }
 
-  // DC-19V
-  if(hardware_state.dc_19v.voltage_mv < 18500 || hardware_state.dc_19v.voltage_mv > 19500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Voltage too low / high");
-  }
-  if(hardware_state.dc_19v.current_ma < -100 || hardware_state.dc_19v.current_ma > 5000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Current too low / high");
-  }
-  if(hardware_state.dc_19v.power_mw < -100 || hardware_state.dc_19v.power_mw > 100000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Power too low / high");
-  }
-
-  // DC-24V
-  if(hardware_state.dc_24v.voltage_mv < 23500 || hardware_state.dc_24v.voltage_mv > 24500) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Voltage too low / high");
-  }
-  if(hardware_state.dc_24v.current_ma < -100 || hardware_state.dc_24v.current_ma > 10000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Current too low / high");
-  }
-  if(hardware_state.dc_24v.power_mw < -100 || hardware_state.dc_24v.power_mw > 240000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Power too low / high");
-  }
-
-  // DC-ALL
-  int32_t power_mw = hardware_state.dc_05v.power_mw + hardware_state.dc_12v.power_mw + hardware_state.dc_19v.power_mw + hardware_state.dc_24v.power_mw;
-  if(power_mw < -100 || power_mw > 240000) {
-    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-ALL Power too low / high");
-  }
+  statusPub.publish(msg);
 }
 
-int main(int argc, char *argv[]) {
-  ros::init(argc, argv, "caster_mcu_node");
-  ros::NodeHandle private_nh("~");
-
-  int baudrate;
-  std::string port;
-
-  private_nh.param<int>("mcu_baudrate", baudrate, 115200);
-  private_nh.param<std::string>("mcu_port", port, "/dev/ttyUSB0");
-
-  serial::Serial serial_port;
-
-  try {
-    serial_port.setPort(port);
-    serial_port.setBaudrate(baudrate);
-    serial::Timeout serial_timeout = serial::Timeout::simpleTimeout(50);
-    serial_port.setTimeout(serial_timeout);
-    serial_port.open();
-    serial_port.setRTS(false);
-    serial_port.setDTR(false);
-  } catch (serial::IOException& e) {
-    ROS_ERROR_STREAM("Unable to open serial port:" + port);
-  }
-
-  diagnostic_updater::Updater diagnostic;
-  diagnostic.setHardwareID("caster_robot");
-  diagnostic.add("MCU", MCUCheck);
-
-  // ros::Timer timer = nh.createTimer(ros::Duration(0.1), timerCallback);
-
-  RHDLC hdlc(&SendBuffer, &FrameHandler, 300);
-
-  size_t available_data;
-  uint8_t receive_byte[100];
-  while(ros::ok()) {
-    available_data = serial_port.available();
-    available_data = available_data>100 ? 100 : available_data;
-    if(available_data > 0) {
-      serial_port.read(receive_byte, available_data);
-      for(int i=0; i<available_data; i++) {
-        hdlc.charReceiver(receive_byte[i]);
-      }
+void CasterMCUNode::callBack(const std_msgs::Bool &msg)
+{
+  uint16_t data[2] = {0x0001, 0x0000};
+  if (msg.data)
+  {
+    uint8_t ret = master->setMultipleRegisters(0x01, 0x0003, 0x0001, data);
+    if (!ret)
+    {
+      ROS_WARN("Write Multiple Registers faild!!");
     }
-    diagnostic.update();
+  }
+  else
+  {
+    uint8_t ret = master->setMultipleRegisters(0x01, 0x0003, 0x0001, data + 1);
+    if (!ret)
+    {
+      ROS_WARN("Write Multiple Registers faild!!");
+    }
+  }
+}
+
+int main(int argc, char *argv[])
+{
+  ros::init(argc, argv, "caster_mcu_node");
+
+  CasterMCUNode node;
+
+  ros::Rate r(10);
+
+  while (ros::ok())
+  {
     ros::spinOnce();
+    node.loop();
+    r.sleep();
   }
 
   ROS_INFO("All finish");
