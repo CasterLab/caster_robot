@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
 
-
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -135,7 +134,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/caster_base_node.cpp src/caster_hardware.cpp)
 add_executable(${PROJECT_NAME}_node src/caster_base_node.cpp src/caster_hardware.cpp)
-add_executable(caster_mcu_node src/caster_mcu_node.cpp src/ModBusRTUMaster.cpp)
+add_executable(caster_mcu_node src/caster_mcu_node.cpp src/modbus_rtu_master.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
