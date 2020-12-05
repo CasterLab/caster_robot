@@ -4,7 +4,7 @@
   <arg name="base_version" default="v2" />
   
   <!-- Arguments -->
-  <arg name="map_file" default="$(find caster_navigation)/maps/dock_test.yaml"/>
+  <arg name="map_file" default="$(find caster_navigation)/maps/nanhua.yaml"/>
   <arg name="rviz" default="false"/>
 
   <!-- Map server -->
@@ -27,3 +27,5 @@
     <node pkg="rviz" type="rviz" name="rviz" required="true" args="-d $(find caster_viz)/viz/navigation.rviz" output="$(arg log_type)"/>
   </group>
 </launch>
+
+<!-- rosrun cartographer_ros cartographer_pbstream_to_ros_map -map_filestem=/home/caster/test -pbstream_filename=/home/caster/caster_moma_ws/src/caster_robot/caster_navigation/maps/test.pbstream -->

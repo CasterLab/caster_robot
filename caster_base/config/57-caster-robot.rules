@@ -1,7 +1,5 @@
 SUBSYSTEMS=="usb", ENV{.LOCAL_ifNum}="$attr{bInterfaceNumber}"
 SUBSYSTEMS=="usb",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6001", MODE:="0777", SYMLINK+="caster_base"
-SUBSYSTEMS=="usb",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6011", ENV{.LOCAL_ifNum}=="00", MODE:="0777", SYMLINK+="caster_mcu"
 SUBSYSTEMS=="usb",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6011", ENV{.LOCAL_ifNum}=="01", MODE:="0777", SYMLINK+="caster_sonar"
-SUBSYSTEMS=="usb",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6011", ENV{.LOCAL_ifNum}=="02", MODE:="0777", SYMLINK+="caster_bms"
 SUBSYSTEMS=="usb",ATTRS{idVendor}=="0403",ATTRS{idProduct}=="6011", ENV{.LOCAL_ifNum}=="03", MODE:="0777", SYMLINK+="caster_imu"
 KERNEL=="ttyUSB[0-9]",ATTRS{idVendor}=="10c4",ATTRS{idProduct}=="ea60", MODE:="0777", ATTRS{serial}=="0001", SYMLINK+="rplidar"

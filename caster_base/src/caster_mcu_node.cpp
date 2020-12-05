@@ -3,6 +3,8 @@
 #include <std_msgs/Bool.h>
 #include <boost/format.hpp>
 
+#include <diagnostic_updater/diagnostic_updater.h>
+
 #include "modbus_rtu_master.h"
 #include "caster_msgs/CasterState.h"
 
@@ -33,26 +35,33 @@ class CasterMCUNode {
     caster_msgs::CasterState state_msg_;
     diagnostic_updater::Updater diagnostic_;
 
-    ModBusRTUMaster *modbus_handler_;
+    static CasterMCUNode* instance_;
 
-    void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
-    void PDBCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
-    void BMSCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
+    ModbusRTUMaster *modbus_handler_;
+
+    static void MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
+    static void PDBCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
+    static void BMSCheck(diagnostic_updater::DiagnosticStatusWrapper& status);
 };
 
+CasterMCUNode* CasterMCUNode::instance_ = nullptr;
+
 CasterMCUNode::CasterMCUNode(): nh_("~") {
-  nh_.param<int>("baudrate", baudrate_, 115200);
-  nh_.param<std::string>("port", port_name_, "/dev/caster_mcu");
+  if(instance_ == nullptr) {
+    nh_.param<int>("baudrate", baudrate_, 115200);
+    nh_.param<std::string>("port", port_name_, "/dev/caster_mcu");
 
-  modbus_handler_ = new ModBusRTUMaster(port_name_, baudrate_);
+    modbus_handler_ = new ModbusRTUMaster(port_name_, baudrate_);
 
-  estop_sub_ = nh_.subscribe("estop", 1, &CasterMCUNode::CallBack, this);
-  state_pub_ = nh_.advertise<caster_msgs::CasterState>("state", 10);
+    estop_sub_ = nh_.subscribe("estop", 1, &CasterMCUNode::CallBack, this);
+    state_pub_ = nh_.advertise<caster_msgs::CasterState>("state", 10);
 
-  diagnostic_.setHardwareID("caster_robot");
-  diagnostic_.add("PDB", this->MCUCheck);
-  diagnostic_.add("PDB", this->PDBCheck);
-  diagnostic_.add("PDB", this->BMSCheck);
+    diagnostic_.setHardwareID("caster_robot");
+    diagnostic_.add("MCU", MCUCheck);
+    diagnostic_.add("PDB", PDBCheck);
+    diagnostic_.add("BMS", BMSCheck);
+    instance_ = this;
+  }
 }
 
 CasterMCUNode::~CasterMCUNode() {
@@ -61,83 +70,90 @@ CasterMCUNode::~CasterMCUNode() {
 }
 
 void CasterMCUNode::MCUCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
-  status.add("Hardware Version", state_msg_.hardware_version);
-  status.add("Firmware Version", state_msg_.firmware_version);
-  status.add("Serial Number", state_msg_.serial_number);
+  status.add("Hardware Version", instance_->state_msg_.hardware_version);
+  status.add("Firmware Version", instance_->state_msg_.firmware_version);
+  status.add("Serial Number", instance_->state_msg_.serial_number);
+  status.add("E-Stop State", instance_->state_msg_.estop_state?"True":"False");
+  status.add("Charge State", instance_->state_msg_.charge_state?"True":"False");
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
-  if(state_msg_.pdb_error == true) {
+  if(instance_->state_msg_.pdb_error) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "PDB Error");
   }
-  if(state_msg_.bms_error == true) {
+  if(instance_->state_msg_.bms_error) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "BMS Error");
+  }
+  if(instance_->state_msg_.estop_state) {
+    status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "E-Stop pressed");
   }
 }
 
 void CasterMCUNode::PDBCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
-  status.addf("DC-12V Current (A)", "%.3f", state_msg_.pdb.dc_12_current);
-  status.addf("DC-12V Voltage (V)", "%.2f", state_msg_.pdb.dc_12_voltage);
+  status.addf("DC-12V Current (A)", "%.3f", instance_->state_msg_.pdb.dc_12_current);
+  status.addf("DC-12V Voltage (V)", "%.2f", instance_->state_msg_.pdb.dc_12_voltage);
 
-  status.addf("DC-19V Current (A)", "%.3f", state_msg_.pdb.dc_19_current);
-  status.addf("DC-19V Voltage (V)", "%.2f", state_msg_.pdb.dc_19_voltage);
+  status.addf("DC-19V Current (A)", "%.3f", instance_->state_msg_.pdb.dc_19_current);
+  status.addf("DC-19V Voltage (V)", "%.2f", instance_->state_msg_.pdb.dc_19_voltage);
 
-  status.addf("DC-24V Current (A)", "%.3f", state_msg_.pdb.dc_24_current);
-  status.addf("DC-24V Voltage (V)", "%.2f", state_msg_.pdb.dc_24_voltage);
+  status.addf("DC-24V Current (A)", "%.3f", instance_->state_msg_.pdb.dc_24_current);
+  status.addf("DC-24V Voltage (V)", "%.2f", instance_->state_msg_.pdb.dc_24_voltage);
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
 
   // DC-12V
-  if(state_msg_.pdb.dc_12_voltage < 11.5 || state_msg_.pdb.dc_12_voltage > 12.5) {
+  if(instance_->state_msg_.pdb.dc_12_voltage < 11.5 || instance_->state_msg_.pdb.dc_12_voltage > 12.5) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Voltage too low / high");
   }
-  if(state_msg_.pdb.dc_12_current < -0.1 || state_msg_.pdb.dc_12_current > 5.5) {
+  if(instance_->state_msg_.pdb.dc_12_current < -0.1 || instance_->state_msg_.pdb.dc_12_current > 5.5) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-12V Current too low / high");
   }
 
   // DC-19V
-  if(state_msg_.pdb.dc_19_voltage < 18.5 || state_msg_.pdb.dc_19_voltage > 19.5) {
+  if(instance_->state_msg_.pdb.dc_19_voltage < 18.5 || instance_->state_msg_.pdb.dc_19_voltage > 19.5) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Voltage too low / high");
   }
-  if(state_msg_.pdb.dc_19_current < -0.1 || state_msg_.pdb.dc_19_current > 5.0) {
+  if(instance_->state_msg_.pdb.dc_19_current < -0.1 || instance_->state_msg_.pdb.dc_19_current > 5.0) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-19V Current too low / high");
   }
 
   // DC-24V
-  if(state_msg_.pdb.dc_24_voltage < 23.5 || state_msg_.pdb.dc_24_voltage > 24.5) {
+  if(instance_->state_msg_.pdb.dc_24_voltage < 23.5 || instance_->state_msg_.pdb.dc_24_voltage > 24.5) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Voltage too low / high");
   }
-  if(state_msg_.pdb.dc_24_current < -0.1 || state_msg_.pdb.dc_24_current > 10.0) {
+  if(instance_->state_msg_.pdb.dc_24_current < -0.1 || instance_->state_msg_.pdb.dc_24_current > 10.0) {
     status.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "DC-24V Current too low / high");
   }
 }
 
 void CasterMCUNode::BMSCheck(diagnostic_updater::DiagnosticStatusWrapper& status) {
-  status.add("Voltage (V)", state_msg_.bms.voltage);
-  status.add("Current (A)", state_msg_.bms.current);
-  status.add("Residual Capacity (mAh)", state_msg_.bms.residual_capacity);
-  status.add("Design Capacity (mAh)", state_msg_.bms.design_capacity);
-  status.add("RSOC (%)", state_msg_.bms.rsoc);
-  status.add("Cycle Count", state_msg_.bms.cycle_count);
-  status.add("Balance State", state_msg_.bms.balance_state);
-  status.add("Safty State", state_msg_.bms.safty_state);
-  status.add("FET State", state_msg_.bms.fet_state);
-  status.add("Firmware Version", state_msg_.bms.firmware_version);
+  boost::format key_format;
 
-  status.add("Cell Count", state_msg_.bms.cell_count);
-  for(int i=0; i<state_msg_.bms.cell_count; i++) {
+  status.add("Voltage (V)", instance_->state_msg_.bms.voltage);
+  status.add("Current (A)", instance_->state_msg_.bms.current);
+  status.add("Residual Capacity (mAh)", instance_->state_msg_.bms.residual_capacity);
+  status.add("Design Capacity (mAh)", instance_->state_msg_.bms.design_capacity);
+  status.add("RSOC (%)", instance_->state_msg_.bms.rsoc);
+  status.add("Cycle Count", instance_->state_msg_.bms.cycle_count);
+  status.add("Balance State", instance_->state_msg_.bms.balance_state);
+  status.add("Safty State", instance_->state_msg_.bms.safty_state);
+  status.add("FET State", instance_->state_msg_.bms.fet_state);
+  status.add("Firmware Version", instance_->state_msg_.bms.firmware_version);
+
+  status.add("Cell Count", instance_->state_msg_.bms.cell_count);
+  for(int i=0; i<instance_->state_msg_.bms.cell_count; i++) {
     key_format = boost::format("Cell %1% Voltage (V)") % i;
-    status.add(key_format.str(), state_msg_.bms.cell_voltage[i]);
+    status.add(key_format.str(), instance_->state_msg_.bms.cell_voltage[i]);
   }
 
-  status.add("NTC Count", state_msg_.bms.ntc_count);
-  for(int i=0; i<state_msg_.bms.ntc_count; i++) {
+  status.add("NTC Count", instance_->state_msg_.bms.ntc_count);
+  for(int i=0; i<instance_->state_msg_.bms.ntc_count; i++) {
     key_format = boost::format("Ntc %1% (℃)") % i;
-    status.add(key_format.str(), state_msg_.bms.Ntntc_datacTem[i]);
+    status.add(key_format.str(), instance_->state_msg_.bms.ntc_data[i]);
   }
 
   status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
   for(int i = 0; i < 13; ++i) {
-    if((state_msg_.bms.safty_state & (0x0001>>i)>>i)==1) {
+    if((instance_->state_msg_.bms.safty_state & (0x0001>>i)>>i)==1) {
       status.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, error_info[i]);
     }
   }
@@ -185,17 +201,19 @@ void CasterMCUNode::loop() {
   state_msg_.bms.fet_state = data[25];
   state_msg_.bms.firmware_version = str(boost::format("v%1%.%2%") % int((data[26] & 0xff00) >> 8) % int(data[26] & 0x00ff));
 
-  for (size_t i = 0; i < msg.bms.NTCCount; i++) {
+  state_msg_.bms.ntc_data.clear();
+  for (size_t i = 0; i < state_msg_.bms.ntc_count; i++) {
     float ntc = (data[27 + i] - 2731) / 10.0;
-    msg.bms.ntc_data.push_back(ntc);
+    state_msg_.bms.ntc_data.push_back(ntc);
   }
 
-  for (size_t i = 0; i < msg.bms.cellCount; i++) {
+  state_msg_.bms.cell_voltage.clear();
+  for (size_t i = 0; i < state_msg_.bms.cell_count; i++) {
     float vol = data[29 + i] / 1000.0;
-    msg.bms.cell_voltage.push_back(vol);
+    state_msg_.bms.cell_voltage.push_back(vol);
   }
 
-  state_pub_.publish(msg);
+  state_pub_.publish(state_msg_);
   diagnostic_.update();
 }
 

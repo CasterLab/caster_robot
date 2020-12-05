@@ -4,9 +4,10 @@
   <arg name="base_version" default="v2" />
   <arg name="has_body" default="false" />
   <arg name="body_version" default="v1" />
+  <arg name="respawn" default="false"/>
 
   <!-- Caster driver -->
-  <node pkg="caster_base" type="caster_base_node" name="caster_base_node" output="$(arg log_type)">
+  <node pkg="caster_base" type="caster_base_node" name="caster_base_node" output="$(arg log_type)" respawn="$(arg respawn)">
     <param name="base_baudrate" type="int" value="115200" />
     <param name="base_port" type="string" value="/dev/caster_base" />
     <param name="body_baudrate" type="int" value="115200" if="$(arg has_body)"/>
@@ -19,32 +20,21 @@
   </node>
 
   <!-- Caster MCU driver -->
-  <node pkg="caster_base" type="caster_mcu_node" name="caster_mcu_node" output="$(arg log_type)">
-    <param name="mcu_baudrate" type="int" value="115200" />
-    <param name="mcu_port" type="string" value="/dev/caster_mcu" />
+  <node pkg="caster_base" type="caster_mcu_node" name="caster_mcu_node" respawn="$(arg respawn)" output="$(arg log_type)">
+    <param name="baudrate" type="int" value="115200" />
+    <param name="port" type="string" value="/dev/caster_mcu" />
   </node>
 
   <!-- Imu driver -->
-  <node pkg="jy901_driver" type="jy901_driver_node" name="jy901_node" output="$(arg log_type)" >
+  <node pkg="jy901_driver" type="jy901_driver_node" name="jy901_node" output="$(arg log_type)" respawn="$(arg respawn)">
     <param name="baudrate" type="int" value="115200" />
     <param name="port" type="string" value="/dev/caster_imu" />
     <param name="looprate" type="int" value="50" />
     <remap from="imu/data" to="imu_data"/>
   </node>
 
-  <!-- Laser driver -->
-  <node pkg="urg_node" type="urg_node" name="urg_node" output="$(arg log_type)">
-    <param name="ip_address" value="192.168.33.7"/>
-    <param name="frame_id" value="laser_link"/>
-    <param name="calibrate_time" value="false"/>
-    <param name="publish_intensity" value="true"/>
-    <param name="publish_multiecho" value="false"/>
-    <param name="angle_min" value="-1.4835299"/>
-    <param name="angle_max" value="1.4835299"/>
-  </node>
-
   <!-- RPlidar driver -->
-  <node pkg="rplidar_ros" type="rplidarNode" name="rplidarNode" output="$(arg log_type)">
+  <node pkg="rplidar_ros" type="rplidarNode" name="rplidarNode" output="$(arg log_type)" respawn="$(arg respawn)">
     <param name="serial_port"         type="string" value="/dev/rplidar"/>
     <param name="serial_baudrate"     type="int"    value="115200"/>
     <param name="frame_id"            type="string" value="laser_link2"/>
@@ -53,23 +43,43 @@
     <remap from="scan" to="scan_2"/>
   </node>
 
-  <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="tilt_shadow_filter" output="$(arg log_type)">
+  <node name="PavoScanNode"    pkg="pavo_ros"  type="pavo_scan_node"  output="screen" respawn="$(arg respawn)">
+    <remap from="/PavoScanNode/scan" to="/scan" />
+    <param name="frame_id"     type="string"   value="laser_link"/><!--配置frame_id-->
+    <param name="scan_topic"   type="string"   value="scan" /><!--设置激光雷达的topic名称--> 
+    <param name="angle_min"    type="double"   value="-65.00" /><!--设置最小角度，单位度.取值范围[-135,135].default=-135.0-->
+    <param name="angle_max"    type="double"   value="65.00"/><!--设置最大角度，单位度.取值范围[-135,135].default=135.0-->
+    <param name="range_min"    type="double"   value="0.10" /><!--设置最小距离，单位米，default=0.10-->
+    <param name="range_max"    type="double"   value="20.0" /><!--设置最大距离，单位米，default=20-->
+    <param name="inverted"     type="bool"     value="false"/><!--配置雷达是否倒装，倒装true，正装false-->
+    <param name="enable_motor" type="bool"     value="true"/><!--设置雷达启动和停止,启动true，停止false-->
+    <param name="motor_speed"  type="int"      value="30" /><!--可配10,15,20,25,30Hz,default=15Hz-->
+    <param name="merge_coef"   type="int"      value="1" /><!--可配1,2,4,8点合并,default=2，即两点合并为一点-->
+    <param name="lidar_ip"     type="string"   value="192.168.33.7" /><!--所要连接的雷达IP地址，即通过PavoView设置的雷达IP地址-->
+    <param name="lidar_port"   type="int"      value="2368" /><!--雷达ip默认为10.10.10.101，端口号默认为2368-->
+    <param name="method"       type="int"      value="0" /><!--设置使用的去除拖尾的方法，取值范围0,1,2,3;0表示不去除拖尾，1表示适中方式，2表示较强去除，3表示强烈去除，默认不开启去除拖尾-->
+    <param name="switch_active_mode"   type="bool"  value="false"/><!--自2.0.0版本开始,不用再设置主机的IP和port.若使用之前版本，需将此value设为true；并为host_ip和host_port赋值-->
+    <!--param name="host_ip"      type="string"   value="10.10.10.100" /--><!--所要绑定的网卡IP地址，即通过PavoView设置的雷达目标上位机地址-->
+    <!--param name="host_port"    type="int"      value="2368" /--><!--所要绑定的端口-->
+  </node>
+
+  <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="tilt_shadow_filter" output="$(arg log_type)" respawn="$(arg respawn)">
     <rosparam command="load" file="$(find caster_base)/config/laser_2_filter.yaml" />
     <remap from="scan" to="scan_2" />
     <remap from="scan_filtered" to="scan_2_filtered" />
   </node>
 
   <!-- BMS driver -->
-  <node pkg="hongfu_bms_status" type="hongfu_bms_status_node" name="hongfu_bms_status_node" output="screen">
+<!--   <node pkg="hongfu_bms_status" type="hongfu_bms_status_node" name="hongfu_bms_status_node" output="screen">
     <param name="looprate" type="int" value="1" />
     <param name="baudrate" type="int" value="9600" />
     <param name="port" type="string" value="/dev/caster_bms" />
     <param name="frame_id" type="string" value="hongfu_bms" />
     <remap from="/hongfu_bms_status/hongfu_bms" to="/bms"/>
   </node>
-
+ -->
   <!-- Ultrasonic sensor driver -->
-  <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen">
+  <node pkg="dauxi_ks106" type="dauxi_ks106_node" name="dauxi_ks106_node" output="screen" respawn="$(arg respawn)">
     <param name="port" type="string" value="/dev/caster_sonar"/>
     <param name="baudrate" type="int" value="9600"/>
     <param name="frequency" type="int" value="10"/>
@@ -83,7 +93,7 @@
   </node>
 
   <!-- Robot pose EKF -->
-  <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)">
+  <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="$(arg log_type)" respawn="$(arg respawn)">
     <param name="output_frame" value="odom"/>
     <param name="base_footprint_frame" value="base_footprint"/>
     <param name="freq" value="50"/>
@@ -102,7 +112,7 @@
     <arg name="body_version" value="$(arg body_version)" />
   </include>
 
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="$(arg log_type)">
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="$(arg log_type)" respawn="$(arg respawn)">
     <!-- <param name="publish_frequency" type="double" value="50" /> -->
   </node>
 

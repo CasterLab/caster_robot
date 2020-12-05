@@ -1,5 +1,7 @@
 #include "modbus_rtu_master.h"
 
+#include <ros/ros.h>
+
 #define REBACK_SLEEP_MS 1
 
 ModbusRTUMaster::ModbusRTUMaster(const std::string portNmae, const uint32_t baudRate) {
@@ -16,11 +18,11 @@ ModbusRTUMaster::ModbusRTUMaster(const std::string portNmae, const uint32_t baud
     //com_.setRTS(false);
     //com_.setDTR(false);
   } catch (serial::IOException &e) {
-    ROS_DEBUG("Unable to open serial port:" << portNmae);
+    ROS_DEBUG_STREAM("Unable to open serial port:" << portNmae);
     return;
   }
 
-  ROS_DEBUG("open serial port:" << portNmae << " successful!!"<< std::endl;
+  ROS_DEBUG_STREAM("open serial port:" << portNmae << " successful!!");
     
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 }

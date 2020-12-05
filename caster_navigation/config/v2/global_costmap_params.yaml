@@ -4,7 +4,7 @@ global_costmap:
 
   update_frequency: 2.0            #             (double, default: 5.0)
   publish_frequency: 10.0          #             (double, default: 0.0)
-  transform_tolerance: 0.5         #             (double, default: 0.2)
+  transform_tolerance: 0.55         #             (double, default: 0.2)
 
   resolution: 0.05
 

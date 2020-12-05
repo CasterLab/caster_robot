@@ -324,14 +324,14 @@ class DockActionServer(ActionServer):
     def __dock(self):
         if self.__moveto_dock_ready():
             if self.__head_align():
-                if self.__rotate(math.pi):
-                    if self.__moveto_dock():
-                        self.__docked = True
-                        return True
-                    else:
-                        rospy.logwarn("unable to move to dock")
-                else:
-                    rospy.logwarn("unable to rotate 180")
+                # if self.__rotate(math.pi):
+                #     if self.__moveto_dock():
+                #         self.__docked = True
+                return True
+                #     else:
+                #         rospy.logwarn("unable to move to dock")
+                # else:
+                #     rospy.logwarn("unable to rotate 180")
             else:
                 rospy.logwarn("unable to align head")
         else:

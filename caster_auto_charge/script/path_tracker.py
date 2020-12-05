@@ -89,7 +89,7 @@ class PathTracker():
 
         if len(target_list.poses) <= 0:
             rospy.logwarn('no points on the list')
-            return False, Twist(), current_target_index
+            return False, Twist(), current_target_index, False
 
         current_quaternion = (  current_pose.pose.orientation.x, current_pose.pose.orientation.y,
                                 current_pose.pose.orientation.z, current_pose.pose.orientation.w)
@@ -139,7 +139,7 @@ class PathTracker():
         #                 current_pose.pose.position.x, target_list.poses[current_target_index].pose.position.x, current_pose.pose.position.y, target_list.poses[current_target_index].pose.position.y,
         #                 current_yaw, target_yaw, vel.linear.x, self.__max_vel.linear.x, vel.angular.z, self.__max_vel.angular.z)
 
-        return finish, vel, current_target_index
+        return finish, vel, current_target_index, True
 
 
 # def pose_callback(data):

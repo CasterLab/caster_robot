@@ -495,11 +495,12 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
 
   diagnostic_updater_.update();
 
-  // ROS_INFO("Body: %d, %lf", position, body_joint_.position);
+  // ROS_INFO("Body: %lf, %lf", joints_[kLeftMotor].position,joints_[kRightMotor].position);
   // ROS_INFO("motor counter: %d, %d, %d, %d, %lf, %lf",
   //           motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter,
   //           motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm,
   //           joints_[kLeftMotor].velocity, joints_[kRightMotor].velocity);
+
   // ROS_INFO("status: %s, fault: %s, left: %s, right: %s", \
             ToBinary(status_flag, sizeof(status_flag)).c_str(), ToBinary(fault_flag, sizeof(fault_flag)).c_str(), \
             ToBinary(left_motor_flag, sizeof(left_motor_flag)).c_str(), ToBinary(right_motor_flag, sizeof(right_motor_flag)).c_str());
@@ -575,7 +576,8 @@ void iqr::CasterHardware::WriteCommandsToHardware() {
 
     // set speed 80
     buf[7] = 0x00;
-    buf[8] = 0x50;
+    // buf[8] = 0x32;
+    buf[8] = 0x40;
 
     // set position
     uint8_t t_data[2];

@@ -190,7 +190,7 @@ def main():
 
     rospy.init_node('dock_detect', anonymous=True)
 
-    rospy.Subscriber("scan", LaserScan, callback)
+    rospy.Subscriber("scan", LaserScan, callback, queue_size=1)
 
     dock_tf_broadcaster = tf.TransformBroadcaster()
 
