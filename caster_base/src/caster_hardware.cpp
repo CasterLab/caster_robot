@@ -434,6 +434,8 @@ void iqr::CasterHardware::SerialReadUpadata() {
       // ROS_INFO("Query response, motor status 1: %i", motor_status_[1].status);
       // ROS_INFO("Query response, motor status 2: %i", motor_status_[1].status);
     } 
+  } else {
+    ROS_INFO("nodata");
   }
 }
 
