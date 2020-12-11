@@ -26,6 +26,7 @@ class DockActionServer(ActionServer):
     def __init__(self, name):
         ActionServer.__init__(self, name, DockAction, self.__goal_callback, self.__cancel_callback, False)
 
+        self.__active = False
         self.__docked = False
 
         self.__mutex = threading.Lock()
@@ -147,6 +148,7 @@ class DockActionServer(ActionServer):
         pass
 
     def __cancel_callback(self, gh):
+        self.__active = False
         self.__movebase_client.cancel_goal()
         rospy.logwarn('cancel callback')
 
@@ -215,7 +217,7 @@ class DockActionServer(ActionServer):
         cmd = Twist()
 
         time = rospy.Time.now() + rospy.Duration(10)
-        while rospy.Time.now() < time:
+        while (rospy.Time.now() < time) and self.__active:
             try :
                 dock_pose, dock_quaternion = self.__tf_listener.lookupTransform(self.__base_frame, 'dock', rospy.Time(0))
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -291,8 +293,11 @@ class DockActionServer(ActionServer):
 
         self.__movebase_client.send_goal(mb_goal)
 
-        self.__movebase_client.wait_for_result()
-        rospy.loginfo('arrived dock_ready_pose')
+        if self.__movebase_client.wait_for_result():
+            rospy.loginfo('arrived dock_ready_pose')
+            return True
+
+        rospy.loginfo('unable to move to dock_ready_pose')
 
         # rospy.Rate(2).sleep()
 
@@ -319,7 +324,7 @@ class DockActionServer(ActionServer):
         # rospy.loginfo(self.__movebase_client.wait_for_result())
         # rospy.loginfo('arrived dock_ready_pose_2')
 
-        return True
+        return False
 
     def __dock(self):
         if self.__moveto_dock_ready():
@@ -342,9 +347,11 @@ class DockActionServer(ActionServer):
 
     def __dock_2(self):
         # if True:
+        self.__active = True
         if self.__moveto_dock_ready():
             c_index = 0;
             sleep_time = True
+            # while not rospy.is_shutdown() && self.__active:
             while not rospy.is_shutdown():
                 base_pose = PoseStamped()
                 base_pose.header.frame_id = 'base_link'
@@ -384,7 +391,9 @@ class DockActionServer(ActionServer):
 
             # self.__docked = True
             self.__no_goal = True
-            return True
+            if self.__active:
+                self.__active = False
+                return True
         else:
             rospy.logwarn("unable to move to dock ready")
 

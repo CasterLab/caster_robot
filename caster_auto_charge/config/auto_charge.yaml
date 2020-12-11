@@ -8,7 +8,7 @@ robot_radius: 0.275
 # dock_test map
 dock:
   dock_speed: 0.1
-  dock_distance: 0.95
+  dock_distance: 0.92
   pose_x: 2.71974797024
   pose_y: -0.205334700774
   pose_z: 0.00
