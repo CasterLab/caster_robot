@@ -81,7 +81,7 @@ class CasterHardware : public hardware_interface::RobotHW {
       { }
     };
 
-    int16_t *num = new int16_t[14];
+    int32_t *num = new int32_t[14];
     std::string data_type[13] = {"T", "T", "T", "A", "A", "CB", "CB", "BS", "BS", "FM", "FM", "FS","FF"};
 
     CasterHardware();
@@ -100,7 +100,7 @@ class CasterHardware : public hardware_interface::RobotHW {
 
     std::string ToBinary(size_t data, uint8_t length);
     uint16_t CRC16 (const uint8_t *data, uint16_t length);
-    int16_t* BufferSpilt(std::string buf_driver);
+    int32_t* BufferSpilt(std::string buf_driver);
 
     void ControllerTimerCallback(const ros::TimerEvent&);
 

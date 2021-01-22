@@ -338,7 +338,7 @@ void iqr::CasterHardware::ControllerCheck(diagnostic_updater::DiagnosticStatusWr
   }
 }
 
-int16_t* iqr::CasterHardware::BufferSpilt(std::string buf_driver) {
+int32_t* iqr::CasterHardware::BufferSpilt(std::string buf_driver) {
   
   // datacheck
   // find
@@ -402,7 +402,7 @@ void iqr::CasterHardware::SerialReadUpadata() {
 
     if (buf_driver.size() != 0)
     {  
-      int16_t *data = BufferSpilt(buf_driver);
+      int32_t *data = BufferSpilt(buf_driver);
 
       for (int index_cc = 0; index_cc < 2; ++index_cc)
       {
@@ -498,7 +498,7 @@ void iqr::CasterHardware::UpdateHardwareStatus() {
   diagnostic_updater_.update();
 
   // ROS_INFO("Body: %lf, %lf", joints_[kLeftMotor].position,joints_[kRightMotor].position);
-  // ROS_INFO("motor counter: %d, %d, %d, %d, %lf, %lf",
+  // ROS_INFO("motor counter: %ld, %ld, %ld, %ld, %lf, %lf",
   //           motor_status_[kLeftMotor].counter, motor_status_[kRightMotor].counter,
   //           motor_status_[kLeftMotor].rpm, motor_status_[kRightMotor].rpm,
   //           joints_[kLeftMotor].velocity, joints_[kRightMotor].velocity);

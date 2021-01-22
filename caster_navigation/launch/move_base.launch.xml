@@ -5,6 +5,8 @@
   
   <!-- Arguments -->
   <arg name="cmd_vel_topic" default="yocs_cmd_vel_mux/input/navigation_cmd" />
+  <!-- <arg name="odom_topic" default="robot_pose_ekf/odom_combined" /> -->
+  <!-- <arg name="odom_topic" default="odom" /> -->
   <arg name="odom_topic" default="odom_ekf" />
 
   <!-- move_base -->
