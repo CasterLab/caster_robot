@@ -13,6 +13,7 @@
     <arg name="base_version" value="v2" />
     <arg name="has_body" value="false" />
     <arg name="body_version" value="v1" />
+    <arg name="laser_type" value="pavo" />
   </include>
 
   <group if="$(arg teleop)">
